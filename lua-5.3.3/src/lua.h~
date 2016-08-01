@@ -107,10 +107,6 @@ struct Foo {
 
 
 
-
-
-
-
 /* type of numbers in Lua */
 typedef LUA_NUMBER lua_Number;
 

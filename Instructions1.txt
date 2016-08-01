@@ -1,0 +1,103 @@
+Example 1: Adder.lua
+==============================
+
+
+Goals:
+---------
+1. To perform pointer arithmetic ( Not Allowed in Pure Lua ).
+2. To malloc and manipulate C structs ( Not Allowed in Pure Lua ).
+
+Note:
+--------
+1. All changes made by us to the Lua source is marked by the following tags. This is to make it easier to see the changes using the text editor's find tool.
+
+//@POSEIDON_LUA: BEGIN
+//============================================================================================
+
+//@POSEIDON_LUA: END
+//============================================================================================
+
+
+Instructions:
+------------------
+1. Navigate to "Poseidon_Lua/lua-5.3.3" and enter "make linux".
+   This will compile the Lua source in the "Poseidon_Lua/lua-5.3.3/src" directory.
+
+2. Navigate to "Poseidon_Lua/lua-5.3.3/src" and enter the following to run the Adder.lua example.
+
+
+Poseidon_Lua/lua-5.3.3/src$ ./lua Adder.lua 0 2 20
+===================================
+ARG SIZE: 3
+===================================
+ARG:
+1 : 0
+2 : 2
+3 : 20
+0 : Adder.lua
+RESULT_SUM : 22
+FOO : --
+-1 : ./lua
+===================================
+SUM : 22
+===================================
+
+
+3. When you run the Lua interpreter, it creates a global "arg" table and pushes all of the command line arguments into this table.
+
+4. Open "Poseidon_Lua/lua-5.3.3/src/Adder.lua". 
+   You will see that the Pure Lua script outputs the size and content of the global "arg" table.
+   Then, it adds up all the command line arguments except the first and outputs the sum.
+
+5. Open "Poseidon_Lua/lua-5.3.3/src/lua.c".
+   This is where the Lua interpreter is implemented.
+   Check the "pmain()" function.
+   You can see that this function calls the "createargtable()" function to create the global "arg" table and push the command line arguments into the table.
+   After this, our "insertSumHere()" function is called, which is defined at the bottom of the file.
+   Our "insertSumHere()" function mallocs a C struct named Foo, which is defined in the "Poseidon_Lua/lua-5.3.3/src/lua.h" file.
+      All the command line arguments except the first are added up and the sum is inserted into the "sum" member field of the C struct.
+      The "topValue" member field is set to "-202".
+      The "bottomValue" member field is set to "-3003".
+      The C struct is wrapped in a LUData object and pushed into the global "arg" table with the index "FOO".
+
+6. Open "Poseidon_Lua/lua-5.3.3/src/lopcodes.h".
+   Check the "typedef enum {...} OpCode ;" statement.
+   You will see that we have defined our own opcode named "OP_LOAD_INT_1".
+   Open "Poseidon_Lua/lua-5.3.3/src/lvm.c".
+   This is where the Lua Virtual Machine is implemented.
+   Check the "luaV_execute()" function.
+   This is where the main interpreter loop is located.
+   You can see that we use an "if/else" statement to run our opcode as the first instruction of any program.
+   The rest of the program follows afterwards as usual.
+   Our opcode "OP_LOAD_INT_1" executes as follows.
+      The first command line argument is extracted from the global "arg" table.
+      Our C struct is extracted from the global "arg" table.
+      A pointer is created that points to the "sum" member field of our C struct.
+      The pointer is reset by performing pointer arithmetic using the first command line argument.
+      The value pointed to by this pointer is pushed into the global "arg" table with the index "RESULT_SUM".
+      You can see the value of "RESULT_SUM" in the global "arg" table from the prinout from our Pure Lua script.
+
+7. Are we really performing pointer arithmetic?
+   If the first command line argument is "0", the value of "RESULT_SUM" will be the same as "SUM", as computed by our Pure Lua script.
+   If the first command line argument is "-1", the value of "RESULT_SUM" will be "-202", the value of the "topValue" member field of our C struct.
+   If the first command line argument is "1", the value of "RESULT_SUM" will be "-3003", the value of the "bottomValue" member field of our C struct.
+   If the first command line argument is some other arbitrary value, the value of "RESULT_SUM" will also be some arbitrary value.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
