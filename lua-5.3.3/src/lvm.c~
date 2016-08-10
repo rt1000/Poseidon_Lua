@@ -31,6 +31,17 @@
 #include "lvm.h"
 
 
+  //@POSEIDON_LUA: BEGIN
+  //============================================================================================
+
+  #include <stddef.h>
+
+  //@POSEIDON_LUA: END
+  //============================================================================================
+
+
+
+
 /* limit for table tag-method chains (to avoid loops) */
 #define MAXTAGLOOP	2000
 
@@ -789,7 +800,7 @@ void luaV_execute (lua_State *L) {
   //@POSEIDON_LUA: BEGIN
   //============================================================================================
 
-  int firstRun = 1 ;
+  int numRun = 1 ;
 
   //@POSEIDON_LUA: END
   //============================================================================================
@@ -813,13 +824,24 @@ void luaV_execute (lua_State *L) {
     //@POSEIDON_LUA: BEGIN
     //============================================================================================
 
+
+    //SET UP INSTRUCTION:
     i = 0 ;
     ra = NULL ;
 
-    if ( firstRun == 1 ) {
+    if ( numRun == 1 ) {
 
+	numRun++ ;
 	SET_OPCODE( i, OP_LOAD_INT_1 ) ;
-	firstRun = 0 ;
+
+    }//end if
+    else if ( numRun == 2 ) {
+
+		numRun++ ;
+
+		lua_pushinteger( L, ((int) offsetof( struct Foo, bottomValue )) ) ;
+
+		SET_OPCODE( i, OP_LOAD_INT_2 ) ;
 
     }//end if
     else {
@@ -857,6 +879,7 @@ void luaV_execute (lua_State *L) {
 	lua_getglobal( L, "arg" ) ;
 
 
+
 	//GET INDEX:
 	lua_pushinteger( L, 1 ) ;
 	lua_rawget( L, -2 ) ;
@@ -867,7 +890,6 @@ void luaV_execute (lua_State *L) {
 	L->top-- ;
 
 
-
 	//GET "FOO":
 	lua_pushstring( L, "FOO" ) ;
 	lua_rawget( L, -2 ) ;
@@ -875,7 +897,6 @@ void luaV_execute (lua_State *L) {
 	struct Foo *foo1 = (struct Foo *)lua_touserdata( L, -1 ) ;
 
 	L->top-- ;
-
 
 
 	//SET resultInt THROUGH POINTER ARITHMETIC:
@@ -890,11 +911,60 @@ void luaV_execute (lua_State *L) {
 
 
 
+	//SET GLOBAL "ARG" TABLE:
 	lua_setglobal( L, "arg" ) ;
+
 
 
         vmbreak;
       }//end OP_LOAD_INT_1
+
+
+
+      vmcase( OP_LOAD_INT_2 ) {
+
+	//DIRECT ACCESS: memberOffset
+	int memberOffset = (int) ((L->top - 1)->value_.i) ;
+
+	L->top-- ;
+
+
+
+	//GET GLOBAL "ARG" TABLE:
+	lua_getglobal( L, "arg" ) ;
+
+
+
+	//GET "FOO":
+	lua_pushstring( L, "FOO" ) ;
+	lua_rawget( L, -2 ) ;
+
+
+	//DIRECT ACCESS: fooPtr
+	char *fooPtr = (char *) ((L->top - 1)->value_.p) ;
+
+	L->top-- ;
+
+
+	//SET resultInt:
+	int *resultInt = (int *) (fooPtr + memberOffset) ;
+
+
+	//PUSH "BOTTOM_VALUE" INTO THE GLOBAL "arg" TABLE:
+	lua_pushstring( L, "BOTTOM_VALUE" ) ;
+	lua_pushinteger( L, (*resultInt) ) ;
+	lua_rawset( L, -3 ) ;
+
+
+
+	//SET GLOBAL "ARG" TABLE:
+	lua_setglobal( L, "arg" ) ;
+
+
+
+        vmbreak;
+      }//end OP_LOAD_INT_2
+
 
       //@POSEIDON_LUA: END
       //============================================================================================

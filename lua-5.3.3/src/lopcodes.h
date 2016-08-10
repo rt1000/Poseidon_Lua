@@ -171,6 +171,7 @@ name		args	description
 //============================================================================================
 
 OP_LOAD_INT_1,/* A B C   LOAD SUM FROM GLOBAL "ARG" TABLE               */
+OP_LOAD_INT_2,/* A B C   LOAD "BOTTOM_VALUE" TO GLOBAL "ARG" TABLE      */
 
 //@POSEIDON_LUA: END
 //============================================================================================
