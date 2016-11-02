@@ -677,18 +677,13 @@ void insertSumHere ( lua_State *L, char **argv, int argc, int script ) {
 
 
 
-}//end insertSum
+}//end insertSumHere
 
 
 
 
 //@POSEIDON_LUA: END
 //============================================================================================
-
-
-
-
-
 
 
 

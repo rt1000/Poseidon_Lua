@@ -100,9 +100,9 @@
 
 //@POSEIDON_LUA: BEGIN
 //============================================================================================
-
+/*
 void insertSumHere ( lua_State *L, char **argv, int argc, int script ) ;
-
+*/
 //@POSEIDON_LUA: END
 //============================================================================================
 
@@ -582,9 +582,9 @@ static int pmain (lua_State *L) {
 
   //@POSEIDON_LUA: BEGIN
   //============================================================================================
-
+/*
   insertSumHere( L, argv, argc, script ) ;
-
+*/
   //@POSEIDON_LUA: END
   //============================================================================================
 
@@ -637,7 +637,7 @@ int main (int argc, char **argv) {
 
 
 
-
+/*
 
 void insertSumHere ( lua_State *L, char **argv, int argc, int script ) {
 
@@ -677,9 +677,9 @@ void insertSumHere ( lua_State *L, char **argv, int argc, int script ) {
 
 
 
-}//end insertSum
+}//end insertSumHere
 
-
+*/
 
 
 //@POSEIDON_LUA: END

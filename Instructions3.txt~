@@ -1,0 +1,204 @@
+Example 3: CS Functions
+==============================
+
+
+Goals:
+---------
+1. To add custom, built-in functions to Lua 
+   that can be called from within a Lua program 
+   to manipulate malloc-ed memory.
+
+Note:
+--------
+1. All changes made by us to the Lua source is marked by the following tags. This is to make it easier to see the changes using the text editor's find tool.
+
+//@POSEIDON_LUA: BEGIN
+//============================================================================================
+
+//@POSEIDON_LUA: END
+//============================================================================================
+
+
+Instructions:
+------------------
+1. Navigate to "Poseidon_Lua/lua-5.3.3" and enter "make linux".
+   This will compile the Lua source in the "Poseidon_Lua/lua-5.3.3/src" directory.
+
+2. Navigate to "Poseidon_Lua/lua-5.3.3/src" and enter the following to run the Adder.lua script.
+
+
+Poseidon_Lua/lua-5.3.3/src$ ./lua Adder.lua
+===================================
+ARG SIZE: 0
+===================================
+ARG:
+0 : Adder.lua
+-1 : ./lua
+===================================
+SUM : 0
+===================================
+
+**** MALLOC: ****
+
+========== z : ==========
+z = CS_malloc(4)
+CS_storeInt(z,0,104)
+=========================
+-------------------------
+--> CS_loadInt(z,0) == 104
+--> CS_loadInt(z,4) == 32541
+
+--> type(CS_loadInt(z,8)): number
+--> type(z): userdata
+-------------------------
+
+========== x : ==========
+x = CS_malloc( 100 )
+CS_storeInt( x, 0, 120 )
+CS_storeDouble( x, 10, 45.70 )
+CS_storeBool( x, 30, false )
+CS_storeNull( x, 50 )
+=========================
+-------------------------
+--> CS_loadInt( x, 0 ) == 120
+--> CS_loadDouble( x, 10 ) == 45.7
+--> CS_loadBool( x, 30 ) == false
+-------------------------
+
+========== y : ==========
+y = CS_malloc( 100 )
+CS_storeInt( y, 0, 180 )
+CS_storeDouble( y, 10, 34.30 )
+CS_storeBool( y, 30, true )
+CS_storeNull( y, 50 )
+=========================
+-------------------------
+--> CS_loadInt( y, 0 ) == 180
+--> CS_loadDouble( y, 10 ) == 34.3
+--> CS_loadBool( y, 30 ) == true
+-------------------------
+
+========== x + y : ======
+CS_storeInt( x, 0, (CS_loadInt( x, 0 ) + CS_loadInt( y, 0 )) )
+CS_storeDouble( x, 10, (CS_loadDouble( x, 10 ) + CS_loadDouble( y, 10 )) )
+CS_storeBool( x, 30, (CS_loadBool( x, 30 ) or CS_loadBool( y, 30 )) )
+CS_storePointer( x, 60, y )
+=========================
+-------------------------
+--> CS_loadInt( x, 0 ) == 300
+--> CS_loadDouble( x, 10 ) == 80.0
+--> CS_loadBool( x, 30 ) == true
+--> CS_loadInt( CS_loadPointer( x, 60 ), 0 ) == 180
+-------------------------
+
+====== free : x, y ======
+CS_free( x )
+CS_free( y )
+=========================
+-------------------------
+--> CS_loadInt( x, 0 ) == 0
+--> CS_loadInt( y, 0 ) == 30163856
+-------------------------
+
+********** done **********
+
+
+
+3. For a detailed explanation of what Adder.lua does, please read through Example 1 ( Instructions1.txt ).
+
+4. The printout from Adder.lua above demonstrates our custom "CS functions".
+   These functions have names that are prefixed with "CS_" as in "CS_malloc()".
+   There are CS functions to malloc and free memory.
+   There are CS functions to load and store values of different types.
+
+5. Open "Poseidon_Lua/lua-5.3.3/src/lparser.c".
+   Check the "primaryexp()" function.
+   When Lua's lexer encounters a variable identifier, it outputs the TK_NAME token.
+   The "primaryexp()" function is the part of Lua's parser that 
+      resolves references to variable identifiers.
+   The normal behaviour of "primaryexp()" when the current token being analyzed is
+      TK_NAME is to call "singlevar()" and that function will find the location of
+      the variable being referenced by the identifier and perform any
+      code generation that may be necessary.
+   We have modified the code so that immediately prior to the call to "singlevar()",
+      "parse_CS_expr()" is called.
+   If the current expression being parsed is a reference to a CS function,
+      "parse_CS_expr()" parses the expression and returns 1.
+      Otherwise, "parse_CS_expr()" returns 0.
+   If "parse_CS_expr()" returns 1, the usual call to "singlevar()" is skipped and
+      "primaryexp()" returns.
+   If "parse_CS_expr()" returns 0, the call to "singlevar()" proceeds as usual.
+
+6. Check the "parse_CS_expr()" function.
+   We added this function to parse references to the CS functions.
+   The "parse_CS_expr()" function accesses the semantic information for the current
+      TK_NAME token.
+   The semantic information contains the actual name of the identifier that TK_NAME
+      refers to.
+   The "parse_CS_expr()" function checks if the name of the identifier matches the 
+      name of any of our CS functions.
+   If there is no match, the "parse_CS_expr()" function returns 0.
+   If there is a match, the "parse_CS_expr()" function calls "funcargs()" to 
+      parse the expressions in the argument list and perform code generation
+      to evaluate the expressions and put the results in a group of registers.
+   When the call to "funcargs()" returns, 
+      the "parse_CS_expr()" function performs code generation 
+      to generate one of our special CS opcodes for the Lua Virtual Machine.
+   Then, the "parse_CS_expr()" function returns 1.
+
+7. Check the "funcargs()" function.
+   This function is used by the Lua parser to parse the expressions in the 
+      argument list of a function call.
+   Our "parse_CS_expr()" function calls "funcargs()" for the same reason.
+   The normal behaviour of the "funcargs()" function is that
+      it parses all the expressions in the argument list and
+      performs code generation to evaluate the expressions 
+      and put the results in a group of registers.
+   Then, the "funcargs()" function performs code generation to implement 
+      the function call over the argument list.
+   Since our "parse_CS_expr()" function will perform the code generation
+      to generate our special CS opcodes, we want "funcargs()" to
+      skip the code generation for the function call and return instead.
+   Therefore, we modified the code for "funcargs()" so that
+      after the argument list has been parsed,
+      it will check if it was called by our "parse_CS_expr()" function.
+      If so, "funcargs()" will skip the code generation for the function call
+         and return.
+      If not, "funcargs()" will continue on to code generate for the function call
+         as usual.
+   In order to implement this, we need a way to determine from within "funcargs()"
+      whether "funcargs()" was called from our "parse_CS_expr()" function or not.
+   We implement this by utilizing a pointer to a expdesc structure that
+      the "funcargs()" function takes as one of its parameters.
+   Normally, this parameter contains a pointer to a expdesc structure that holds
+      information regarding the function to be called.
+   When our "parse_CS_expr()" function calls "funcargs()",
+      it sends a pointer set to NULL.
+   After the "funcargs()" function has finished parsing the argument list
+      and immediately before it has performed code generation to implement
+      the function call over the argument list,
+      it checks if the pointer to the expdesc structure is set to NULL.
+      If so, the "funcargs()" function was called by our "parse_CS_expr()" function.
+         Therefore, it returns.
+      If not, the "funcargs()" function proceeds to perform code generation 
+         for the function call as usual.
+
+8. Open "Poseidon_Lua/lua-5.3.3/src/lopcodes.h".
+   Check the "typedef enum {...} OpCode ;" statement.
+   You will see that we have defined our own special CS opcodes.
+   Our CS opcodes have names that are prefixed with "OP_CS_"
+      as in "OP_CS_MALLOC".
+   These CS opcodes are generated in our "parse_CS_expr()" function.
+
+9. Open "Poseidon_Lua/lua-5.3.3/src/lopcodes.c".
+   Check the "luaP_opnames" and "luaP_opmodes" arrays.
+   Note that we have filled in the appropriate information
+      for our special CS opcodes.
+
+10. Open "Poseidon_Lua/lua-5.3.3/src/lvm.c". 
+    This is where the Lua Virtual Machine is implemented.
+    Check the "luaV_execute()" function.
+    This is where the main interpreter loop is located.
+    Note that we have implemented our special CS opcodes here.
+
+

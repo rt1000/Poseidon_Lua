@@ -929,7 +929,7 @@ static int parse_CS_expr ( LexState *ls, expdesc *v ) {
 	else if ( strcmp( getstr( nameTString ), "CS_storeInt" ) == 0 ) {
 
 		luaX_next( ls ) ;
-
+printf(">>>>>>>>> parser: STORE INT") ;
 		funcargs(ls, f, line) ;
 
 		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_STORE_INT, oldFreeReg, 3, 2));

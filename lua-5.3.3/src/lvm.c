@@ -799,9 +799,9 @@ void luaV_execute (lua_State *L) {
 
   //@POSEIDON_LUA: BEGIN
   //============================================================================================
-
+/*
   int numRun = 1 ;
-
+*/
   //@POSEIDON_LUA: END
   //============================================================================================
 
@@ -824,12 +824,15 @@ void luaV_execute (lua_State *L) {
     //@POSEIDON_LUA: BEGIN
     //============================================================================================
 
-
+/*
     //SET UP INSTRUCTION:
     i = 0 ;
     ra = NULL ;
 
     if ( numRun == 1 ) {
+
+	//INCREASE: frame size (ci->top)
+	lua_checkstack( L, 10) ;
 
 	numRun++ ;
 	SET_OPCODE( i, OP_LOAD_INT_1 ) ;
@@ -845,7 +848,7 @@ void luaV_execute (lua_State *L) {
 
     }//end if
     else {
-
+*/
     //@POSEIDON_LUA: END
     //============================================================================================
 
@@ -855,9 +858,10 @@ void luaV_execute (lua_State *L) {
 
     //@POSEIDON_LUA: BEGIN
     //============================================================================================
-
+/*
     }//end else
 
+*/
     //@POSEIDON_LUA: END
     //============================================================================================
 
@@ -868,11 +872,12 @@ void luaV_execute (lua_State *L) {
 
 
     vmdispatch (GET_OPCODE(i)) {
-
+    
 
       //@POSEIDON_LUA: BEGIN
       //============================================================================================
 
+/*
       vmcase( OP_LOAD_INT_1 ) {
 
 	//GET GLOBAL "ARG" TABLE:
@@ -965,9 +970,239 @@ void luaV_execute (lua_State *L) {
         vmbreak;
       }//end OP_LOAD_INT_2
 
-
+*/
       //@POSEIDON_LUA: END
       //============================================================================================
+
+
+
+//@POSEIDON_LUA: BEGIN
+//============================================================================================
+
+      //CASE: OP_CS_MALLOC
+      vmcase( OP_CS_MALLOC ) {
+
+	//ACCESS: mallocSize
+	int mallocSize = (int) (ivalue(ra)) ;
+
+	//MALLOC: mallocedStruct
+	void *mallocedStruct = malloc( mallocSize ) ;
+
+	//SET: result
+	setpvalue( ra, mallocedStruct ) ;
+
+
+        vmbreak;
+      }//end OP_CS_MALLOC
+
+
+      //CASE: OP_CS_FREE
+      vmcase( OP_CS_FREE ) {
+
+	//ACCESS: mallocedStruct
+	void *mallocedStruct = (pvalue(ra)) ;
+
+	//FREE: mallocedStruct
+	free( mallocedStruct ) ;
+
+	//SET: result
+	setpvalue( ra, NULL ) ;
+
+
+        vmbreak;
+      }//end OP_CS_FREE
+
+
+
+      //CASE: OP_CS_LOAD_INT
+      vmcase( OP_CS_LOAD_INT ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//SET: memberPtr
+	int *memberPtr = (int *) (mallocedStruct + memberOffset) ;
+
+	//SET: result
+	setivalue( ra, *memberPtr ) ;
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_INT
+
+
+      //CASE: OP_CS_STORE_INT
+      vmcase( OP_CS_STORE_INT ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//ACCESS: inputValue
+	int inputValue = (int) (ivalue(ra + 2)) ;
+
+
+	//SET: memberPtr
+	int *memberPtr = (int *) (mallocedStruct + memberOffset) ;
+	*memberPtr = inputValue ;
+
+
+        vmbreak;
+      }//end OP_CS_STORE_INT
+
+
+      //CASE: OP_CS_LOAD_DOUBLE
+      vmcase( OP_CS_LOAD_DOUBLE ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//SET: memberPtr
+	double *memberPtr = (double *) (mallocedStruct + memberOffset) ;
+
+	//SET: result
+	setfltvalue( ra, *memberPtr ) ;
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_DOUBLE
+
+
+      //CASE: OP_CS_STORE_DOUBLE
+      vmcase( OP_CS_STORE_DOUBLE ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//ACCESS: inputValue
+	double inputValue = (double) (fltvalue(ra + 2)) ;
+
+
+	//SET: memberPtr
+	double *memberPtr = (double *) (mallocedStruct + memberOffset) ;
+	*memberPtr = inputValue ;
+
+
+        vmbreak;
+      }//end OP_CS_STORE_DOUBLE
+
+
+      //CASE: OP_CS_LOAD_BOOL
+      vmcase( OP_CS_LOAD_BOOL ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//SET: memberPtr
+	int *memberPtr = (int *) (mallocedStruct + memberOffset) ;
+
+	//SET: result
+	setbvalue( ra, *memberPtr ) ;
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_BOOL
+
+
+      //CASE: OP_CS_STORE_BOOL
+      vmcase( OP_CS_STORE_BOOL ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//ACCESS: inputValue
+	int inputValue = (int) (bvalue(ra + 2)) ;
+
+
+	//SET: memberPtr
+	int *memberPtr = (int *) (mallocedStruct + memberOffset) ;
+	*memberPtr = inputValue ;
+
+
+        vmbreak;
+      }//end OP_CS_STORE_BOOL
+
+
+      //CASE: OP_CS_LOAD_POINTER
+      vmcase( OP_CS_LOAD_POINTER ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//SET: memberPtr
+	char **memberPtr = (char **) (mallocedStruct + memberOffset) ;
+
+	//SET: result
+	setpvalue( ra, *memberPtr ) ;
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_POINTER
+
+
+      //CASE: OP_CS_STORE_POINTER
+      vmcase( OP_CS_STORE_POINTER ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//ACCESS: inputValue
+	char *inputValue = (char *) (pvalue(ra + 2)) ;
+
+
+	//SET: memberPtr
+	char **memberPtr = (char **) (mallocedStruct + memberOffset) ;
+	*memberPtr = inputValue ;
+
+
+        vmbreak;
+      }//end OP_CS_STORE_POINTER
+
+
+      //CASE: OP_CS_STORE_NULL
+      vmcase( OP_CS_STORE_NULL ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+
+	//SET: memberPtr
+	char **memberPtr = (char **) (mallocedStruct + memberOffset) ;
+	*memberPtr = NULL ;
+
+
+        vmbreak;
+      }//end OP_CS_STORE_NULL
+
+//@POSEIDON_LUA: END
+//============================================================================================
+
 
 
       vmcase(OP_MOVE) {

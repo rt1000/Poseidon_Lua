@@ -91,6 +91,8 @@ typedef struct lua_State lua_State;
 //@POSEIDON_LUA: BEGIN
 //============================================================================================
 
+/*
+
 struct Foo {
 
 	int topValue ;
@@ -98,6 +100,12 @@ struct Foo {
 	int bottomValue ;
 
 };//end struct
+
+*/
+/*
+#include <assert.h>
+#define lua_assert(c) (assert(c)) 
+*/
 
 //@POSEIDON_LUA: END
 //============================================================================================
