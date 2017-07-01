@@ -173,17 +173,25 @@ name		args	description
 //OP_LOAD_INT_1,/* A B C   LOAD SUM FROM GLOBAL "ARG" TABLE               */
 //OP_LOAD_INT_2,/* A B C   LOAD "BOTTOM_VALUE" TO GLOBAL "ARG" TABLE      */
 
-OP_CS_MALLOC,/*         A       R(A).p := malloc( R(A).i )              */
-OP_CS_FREE,/*           A       free( R(A).p )                          */
-OP_CS_LOAD_INT,/*       A B     R(A).i := (R(A).p)[R(B).i]              */
-OP_CS_STORE_INT,/*      A B C   (R(A).p)[R(B).i] := R(C).i              */
-OP_CS_LOAD_DOUBLE,/*    A B     R(A).n := (R(A).p)[R(B).i]              */
-OP_CS_STORE_DOUBLE,/*   A B C   (R(A).p)[R(B).i] := R(C).n              */
-OP_CS_LOAD_BOOL,/*      A B     R(A).b := (R(A).p)[R(B).i]              */
-OP_CS_STORE_BOOL,/*     A B C   (R(A).p)[R(B).i] := R(C).b              */
-OP_CS_LOAD_POINTER,/*   A B     R(A).p := (R(A).p)[R(B).i]              */
-OP_CS_STORE_POINTER,/*  A B C   (R(A).p)[R(B).i] := R(C).p              */
-OP_CS_STORE_NULL,/*     A B     (R(A).p)[R(B).i] := NULL                */
+OP_CS_MALLOC,/*              A B C   R(A).p := malloc( R(A).i )              */
+OP_CS_FREE,/*                A B C   free( R(A).p ); R(A).p := NULL          */
+OP_CS_LOAD_INT,/*            A B C   R(A).i := (R(A).p)[R(A+1).i]            */
+OP_CS_STORE_INT,/*           A B C   (R(A).p)[R(A+1).i] := R(A+2).i          */
+OP_CS_LOAD_DOUBLE,/*         A B C   R(A).n := (R(A).p)[R(A+1).i]            */
+OP_CS_STORE_DOUBLE,/*        A B C   (R(A).p)[R(A+1).i] := R(A+2).n          */
+OP_CS_LOAD_BOOL,/*           A B C   R(A).b := (R(A).p)[R(A+1).i]            */
+OP_CS_STORE_BOOL,/*          A B C   (R(A).p)[R(A+1).i] := R(A+2).b          */
+OP_CS_LOAD_POINTER,/*        A B C   R(A).p := (R(A).p)[R(A+1).i]            */
+OP_CS_STORE_POINTER,/*       A B C   (R(A).p)[R(A+1).i] := R(A+2).p          */
+
+OP_CS_LOAD_OFFSET,/*         A B C   R(A).p := (R(A).p)[R(A+1).i]            */
+OP_CS_LOAD_CHAR,/*           A B C   R(A).gc := (R(A).p)[R(A+1).i]           */
+OP_CS_STORE_CHAR,/*          A B C   (R(A).p)[R(A+1).i] := R(A+2).gc         */
+OP_CS_LOAD_STRING,/*         A B C   R(A).gc := (R(A).p)[R(A+1).i]           */
+OP_CS_STORE_STRING,/*        A B C   (R(A).p)[R(A+1).i] := R(A+2).gc         */
+OP_CS_LOAD_CHECKED_NULL,/*   A B C   R(A) := (R(A).p == NULL) ? nil : R(A)   */
+
+OP_CS_STORE_NULL,/*          A B C   (R(A).p)[R(A+1).i] := NULL              */
 
 //@POSEIDON_LUA: END
 //============================================================================================

@@ -720,11 +720,11 @@ function traverse_exp (env, exp)
     return traverse_call(env, exp)
 
 
---[[ @POSEIDON_LUA: BEGIN ]]
+--MOD_TL: begin
 
 	end --end else
 
---[[ @POSEIDON_LUA: END ]]
+--MOD_TL: end
 
 
   elseif tag == "Invoke" then

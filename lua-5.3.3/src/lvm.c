@@ -1182,6 +1182,128 @@ void luaV_execute (lua_State *L) {
       }//end OP_CS_STORE_POINTER
 
 
+      //CASE: OP_CS_LOAD_OFFSET
+      vmcase( OP_CS_LOAD_OFFSET ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//SET: memberPtr
+	char *memberPtr = (char *) (mallocedStruct + memberOffset) ;
+
+	//SET: result
+	setpvalue( ra, memberPtr ) ;
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_OFFSET
+
+
+      //CASE: OP_CS_LOAD_CHAR
+      vmcase( OP_CS_LOAD_CHAR ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//SET: memberPtr
+	char *memberPtr = (char *) (mallocedStruct + memberOffset) ;
+
+	//SET: result
+	setsvalue(L, ra, luaS_newlstr( L, memberPtr, 1 ) ) ;
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_CHAR
+
+
+      //CASE: OP_CS_STORE_CHAR
+      vmcase( OP_CS_STORE_CHAR ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//ACCESS: inputValue
+	char *inputValue = (char *) (svalue(ra + 2)) ;
+
+
+	//SET: memberPtr
+	char *memberPtr = (char *) (mallocedStruct + memberOffset) ;
+	*memberPtr = *inputValue ;
+
+
+        vmbreak;
+      }//end OP_CS_STORE_CHAR
+
+
+      //CASE: OP_CS_LOAD_STRING
+      vmcase( OP_CS_LOAD_STRING ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//SET: memberPtr
+	char *memberPtr = (char *) (mallocedStruct + memberOffset) ;
+
+	//SET: result
+	setsvalue(L, ra, luaS_newlstr( L, memberPtr, strlen( memberPtr ) ) ) ;
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_STRING
+
+
+      //CASE: OP_CS_STORE_STRING
+      vmcase( OP_CS_STORE_STRING ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//ACCESS: memberOffset
+	int memberOffset = (int) (ivalue(ra + 1)) ;
+
+	//ACCESS: inputValue
+	char *inputValue = (char *) (svalue(ra + 2)) ;
+
+
+	//SET: memberPtr
+	char *memberPtr = (char *) (mallocedStruct + memberOffset) ;
+	memcpy( memberPtr, inputValue, strlen( inputValue ) + 1 ) ;
+
+
+        vmbreak;
+      }//end OP_CS_STORE_STRING
+
+
+      //CASE: OP_CS_LOAD_CHECKED_NULL
+      vmcase( OP_CS_LOAD_CHECKED_NULL ) {
+
+	//ACCESS: mallocedStruct
+	char *mallocedStruct = (char *) (pvalue(ra)) ;
+
+	//SET: result
+	if ( mallocedStruct == NULL ) {
+
+		setnilvalue( ra ) ;
+
+	}//end if
+
+
+        vmbreak;
+      }//end OP_CS_LOAD_CHECKED_NULL
+
+
       //CASE: OP_CS_STORE_NULL
       vmcase( OP_CS_STORE_NULL ) {
 

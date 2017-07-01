@@ -1330,7 +1330,7 @@ local function type2str (t, n)
   elseif tltype.isPrim(t) then
     return "built-in function " .. t[1]
 
---[[ @POSEIDON_LUA: BEGIN ]]
+--MOD_TL: begin
 
   elseif tltype.isC_BaseType(t) then
     return t[1]
@@ -1348,7 +1348,7 @@ local function type2str (t, n)
     end --end for
     return arrayString
 
---[[ @POSEIDON_LUA: END ]]
+--MOD_TL: end
 
   elseif tltype.isTrue(t) or tltype.isFalse(t) or tltype.isNum(t) then
     return tostring(t[1])

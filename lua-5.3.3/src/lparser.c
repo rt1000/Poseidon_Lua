@@ -1017,6 +1017,84 @@ static int parse_CS_expr ( LexState *ls, expdesc *v ) {
 		return 1 ;
 
 	}//end if
+	else if ( strcmp( getstr( nameTString ), "CS_loadOffset" ) == 0 ) {
+
+		luaX_next( ls ) ;
+
+		funcargs(ls, f, line) ;
+
+		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_LOAD_OFFSET, oldFreeReg, 2, 2));
+		luaK_fixline(fs, line);
+		fs->freereg = oldFreeReg + 1 ; 
+
+		return 1 ;
+
+	}//end if
+	else if ( strcmp( getstr( nameTString ), "CS_loadChar" ) == 0 ) {
+
+		luaX_next( ls ) ;
+
+		funcargs(ls, f, line) ;
+
+		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_LOAD_CHAR, oldFreeReg, 2, 2));
+		luaK_fixline(fs, line);
+		fs->freereg = oldFreeReg + 1 ; 
+
+		return 1 ;
+
+	}//end if
+	else if ( strcmp( getstr( nameTString ), "CS_storeChar" ) == 0 ) {
+
+		luaX_next( ls ) ;
+
+		funcargs(ls, f, line) ;
+
+		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_STORE_CHAR, oldFreeReg, 3, 2));
+		luaK_fixline(fs, line);
+		fs->freereg = oldFreeReg + 1 ; 
+
+		return 1 ;
+
+	}//end if
+	else if ( strcmp( getstr( nameTString ), "CS_loadString" ) == 0 ) {
+
+		luaX_next( ls ) ;
+
+		funcargs(ls, f, line) ;
+
+		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_LOAD_STRING, oldFreeReg, 2, 2));
+		luaK_fixline(fs, line);
+		fs->freereg = oldFreeReg + 1 ; 
+
+		return 1 ;
+
+	}//end if
+	else if ( strcmp( getstr( nameTString ), "CS_storeString" ) == 0 ) {
+
+		luaX_next( ls ) ;
+
+		funcargs(ls, f, line) ;
+
+		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_STORE_STRING, oldFreeReg, 3, 2));
+		luaK_fixline(fs, line);
+		fs->freereg = oldFreeReg + 1 ; 
+
+		return 1 ;
+
+	}//end if
+	else if ( strcmp( getstr( nameTString ), "CS_loadCheckedNull" ) == 0 ) {
+
+		luaX_next( ls ) ;
+
+		funcargs(ls, f, line) ;
+
+		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_LOAD_CHECKED_NULL, oldFreeReg, 1, 2));
+		luaK_fixline(fs, line);
+		fs->freereg = oldFreeReg + 1 ; 
+
+		return 1 ;
+
+	}//end if
 	else if ( strcmp( getstr( nameTString ), "CS_storeNull" ) == 0 ) {
 
 		luaX_next( ls ) ;

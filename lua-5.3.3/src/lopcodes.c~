@@ -35,6 +35,14 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 	"OP_CS_STORE_BOOL",
 	"OP_CS_LOAD_POINTER",
 	"OP_CS_STORE_POINTER",
+
+	"OP_CS_LOAD_OFFSET",
+	"OP_CS_LOAD_CHAR",
+	"OP_CS_STORE_CHAR",
+	"OP_CS_LOAD_STRING",
+	"OP_CS_STORE_STRING",
+	"OP_CS_LOAD_CHECKED_NULL",
+
 	"OP_CS_STORE_NULL",
 
 //@POSEIDON_LUA: END
@@ -103,17 +111,25 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 //  opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_LOAD_INT_1       */
 // ,opmode(0, 1, OpArgU, OpArgU, iABC),		  /* OP_LOAD_INT_2       */
 
-  opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_MALLOC        */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_FREE          */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_INT      */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_INT     */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_DOUBLE   */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_DOUBLE  */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_BOOL     */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_BOOL    */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_POINTER  */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_POINTER */
- ,opmode(0, 1, OpArgU, OpArgU, iABC),		  /* OP_CS_STORE_NULL    */
+  opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_MALLOC              */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_FREE                */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_INT            */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_INT           */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_DOUBLE         */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_DOUBLE        */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_BOOL           */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_BOOL          */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_POINTER        */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_POINTER       */
+
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_OFFSET         */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_CHAR           */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_CHAR          */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_STRING         */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_STRING        */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_CHECKED_NULL   */
+
+ ,opmode(0, 1, OpArgU, OpArgU, iABC),		  /* OP_CS_STORE_NULL          */
 
 //@POSEIDON_LUA: END
 //============================================================================================

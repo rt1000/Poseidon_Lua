@@ -1,0 +1,82 @@
+
+
+
+
+
+
+
+
+
+local BT_cs = {}
+
+local function build_tree (tree_height) 
+
+  local tree_node
+  tree_node = CS_malloc(8)
+
+
+
+  if tree_height == -(1) then 
+    return cs.NULL
+  else 
+do 
+CS_storePointer(tree_node,0,build_tree(tree_height - 1)) end
+do 
+CS_storePointer(tree_node,4,build_tree(tree_height - 1)) end
+
+
+return tree_node
+  end
+end
+
+
+
+BT_cs.run = function (tree_height) 
+
+  local tree_root_any = build_tree(tree_height)
+
+  local tree_root = tree_root_any
+  if tree_root then 
+    print(" YYYYYYYYYYY BUILD TREE tree_root EXISTS")
+  end
+  local queue = {}
+
+  if not (tree_root == nil) then 
+    print(" YYYYYYYYYYY tree_root EXISTS")
+  else 
+    print("NNNNNNNNNNNN tree_root does NOT EXIST,  height :" .. tree_height)
+  end
+
+  print("GGGGGGGGGGGGGGG TYPE: " .. tostring(type(tree_root)))
+  table.insert(queue,tree_root)
+  print("UUUUUUUU QUEUE SIZE: " .. #(queue))
+  while not (#(queue) == 0) do 
+
+    local curr_node_any = table.remove(queue)
+
+    local curr_node = curr_node_any
+    print("UUUUUUUU 22222 QUEUE SIZE: " .. #(queue))
+    if not (CS_loadPointer(curr_node,0) == cs.NULL) then 
+      print("UUUUUUUU 22222 - 3333333 QUEUE SIZE: " .. #(queue))
+      table.insert(queue,CS_loadPointer(curr_node,0))
+      print("UUUUUUUU 333333 QUEUE SIZE: " .. #(queue))
+    end
+
+    if not (CS_loadPointer(curr_node,4) == cs.NULL) then 
+      print("UUUUUUUU 22222 - 444444444 QUEUE SIZE: " .. #(queue))
+      table.insert(queue,CS_loadPointer(curr_node,4))
+      print("UUUUUUUU 444444444 QUEUE SIZE: " .. #(queue))
+    end
+    print("QUEUE SIZE = " .. tostring(#(queue)))
+  end
+
+  print("         !!!!!! >>>>>>>>>>>>>>> DONE BT_CS")
+
+  return 1
+end
+
+
+
+return BT_cs
+
+
