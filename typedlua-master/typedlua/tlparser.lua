@@ -107,13 +107,12 @@ local G = lpeg.P { "TypedLua";
 
 --[[ @POSEIDON_LUA: BEGIN ]]
 
-  PtrType = ( --tllexer.kw("ptr") * 
+  PtrType = ( 
 		( tllexer.kw("ptr") * lpeg.Cc(true) )^1 *
-		( (tllexer.kw("void") / tltype.Void) + lpeg.V("VariableType") )
+		( lpeg.V("C_VoidType") + lpeg.V("C_BaseType") + lpeg.V("VariableType") )
 	    ) / tltype.Ptr;
 
   C_ArrayType = (
-		   ( lpeg.V("C_BaseType") + lpeg.V("PtrType") ) *
 		   (
 		      tllexer.symb("[") *
 		      (
@@ -123,15 +122,20 @@ local G = lpeg.P { "TypedLua";
 		         ) / tlast.exprNumber
 		      ) *
 		      tllexer.symb("]")
-		   )^1
+		   )^1 *
+		   ( lpeg.V("C_BaseType") + lpeg.V("PtrType") )
 		) / tltype.C_array;
 
-  C_Type = lpeg.V("C_ArrayType") +
-		lpeg.V("C_BaseType") +
-		lpeg.V("PtrType");
-  C_BaseType = tllexer.token("char", "C_Type") / tltype.C_char +
-	       tllexer.token("int", "C_Type") / tltype.C_int +
-               tllexer.token("double", "C_Type") / tltype.C_double;
+  C_Type = lpeg.V("C_BaseType") +
+	   lpeg.V("PtrType") +
+	   lpeg.V("C_ArrayType");
+
+  C_BaseType = tllexer.token("char", "C_BaseType") / tltype.C_char +
+	       tllexer.token("int", "C_BaseType") / tltype.C_int +
+               tllexer.token("double", "C_BaseType") / tltype.C_double +
+               tllexer.token("bool", "C_BaseType") / tltype.C_bool;
+
+  C_VoidType = tllexer.token("void", "C_BaseType") / tltype.C_void;
 
   Struct_IdDec = lpeg.V("IdList") * tllexer.symb(":") *
           (lpeg.V("C_Type")) / tltype.fieldlist;
@@ -139,7 +143,7 @@ local G = lpeg.P { "TypedLua";
   Struct_TypeDec = tllexer.token(tllexer.Name, "Name") * lpeg.V("Struct_IdDecList") * tllexer.kw("end");
   Struct = lpeg.Cp() * tllexer.kw("struct") * lpeg.V("Struct_TypeDec") /
 		tlast.statStruct;
---              tlast.statInterface;
+
 
 --[[ @POSEIDON_LUA: END ]]
 
@@ -230,14 +234,25 @@ local G = lpeg.P { "TypedLua";
 		(	
 			(lpeg.V("PtrType") * 
 				tllexer.symb(",") *
-				(lpeg.Cp() * tllexer.token(tllexer.Number, "Number") 
-				/ tlast.exprNumber) 
+				lpeg.V("Expr")
+
 			) +
 			lpeg.V("PtrType") + 
-			(lpeg.Cp() * tllexer.token(tllexer.Number, "Number") 
-			/ tlast.exprNumber)
+			lpeg.V("Expr")
+
 		) * 
 		tllexer.symb(")") / tlast.exprMalloc;
+
+
+  SizeofExp = lpeg.Cp() * tllexer.kw("sizeof") * tllexer.symb("(") * 
+		(	
+			lpeg.V("C_Type") + 
+			lpeg.V("VariableType")
+		) * 
+		tllexer.symb(")") / tlast.exprSizeof;
+
+
+
 
 --[[ @POSEIDON_LUA: END ]]
 
@@ -249,6 +264,7 @@ local G = lpeg.P { "TypedLua";
 
 		(
 		lpeg.V("MallocExp") +
+		lpeg.V("SizeofExp") +
 
 --[[ @POSEIDON_LUA: END ]]
 
@@ -644,36 +660,10 @@ function traverse_Modified_Call ( env, exp )
 		return false
 	end --end if
 
-	if funcName == "malloc" then
---print( "TAG: " .. exp[2][1] )
---[[		local interfaceName = exp[ 2 ] and exp[ 2 ].tag == "Id" and exp[ 2 ][ 1 ]
+	if funcName == "sizeof" or 
+	   funcName == "malloc" or 
+	   funcName == "free" then
 
-		if not interfaceName then
-			local msg = "Problem @ parser: (malloc) No interface name."
-			return true, nil, tllexer.syntaxerror( env.subject, exp.pos, env.filename, msg )
-		end --end if
-
-		for k, _ in ipairs( exp ) do
-			if k > 2 then
-				exp[ k ] = nil
-			end --end if
-		end --end for
-]]
-		return true, true
-
-
-	elseif funcName == "free" then
---[[
-		if not exp[ 2 ] then
-			return true, false, "Problem @ parser: (free) Arguments missing."
-		end --end if
-
-		for k, _ in ipairs( exp ) do
-			if k > 2 then
-				exp[ k ] = nil
-			end --end if
-		end --end for
-]]
 		return true, true
 
 	end --end if
@@ -776,7 +766,29 @@ function traverse_stm (env, stm)
   elseif tag == "Break" then
     return traverse_break(env, stm)
   elseif tag == "Call" then
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+	local found, status, msg = traverse_Modified_Call( env, stm )
+
+	if found then
+
+		return status, msg
+
+	else
+	
+--[[ @POSEIDON_LUA: END ]]
+
+
     return traverse_call(env, stm)
+
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+	end --end else
+
+--[[ @POSEIDON_LUA: END ]]
+
   elseif tag == "Invoke" then
     return traverse_invoke(env, stm)
   elseif tag == "Interface" then

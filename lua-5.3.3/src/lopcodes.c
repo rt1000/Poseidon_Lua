@@ -41,9 +41,7 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 	"OP_CS_STORE_CHAR",
 	"OP_CS_LOAD_STRING",
 	"OP_CS_STORE_STRING",
-	"OP_CS_LOAD_CHECKED_NULL",
 
-	"OP_CS_STORE_NULL",
 
 //@POSEIDON_LUA: END
 //============================================================================================
@@ -100,6 +98,28 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 };
 
 
+
+//@POSEIDON_LUA: BEGIN
+//============================================================================================
+
+int is_CS_opcode ( int input_opcode ) {
+
+	if ( OP_CS_MALLOC <= input_opcode && input_opcode <= OP_CS_STORE_STRING ) {
+
+		return 1 ;
+
+	}//end if
+
+	return 0 ;
+
+}//end is_CS_opcode
+
+//@POSEIDON_LUA: END
+//============================================================================================
+
+
+
+
 #define opmode(t,a,b,c,m) (((t)<<7) | ((a)<<6) | ((b)<<4) | ((c)<<2) | (m))
 
 LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
@@ -126,10 +146,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_CHAR           */
  ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_CHAR          */
  ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_STRING         */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_STORE_STRING        */
- ,opmode(0, 1, OpArgU, OpArgU, iABC)		  /* OP_CS_LOAD_CHECKED_NULL   */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC),		  /* OP_CS_STORE_STRING        */
 
- ,opmode(0, 1, OpArgU, OpArgU, iABC),		  /* OP_CS_STORE_NULL          */
 
 //@POSEIDON_LUA: END
 //============================================================================================

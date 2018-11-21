@@ -59,7 +59,7 @@ NOTE: If the Modified LuaFFI library is not installed, the rest of the software 
 
 ## Compile and Run a program
 
-Assume that we want to compile and run the Poseidon Lua program that is stored in the file `${project_dir}/HelloWorld/hello_world.tl`. We would proceed as follows.
+Assume that we want to compile and run a Poseidon Lua program that is stored in the file `${project_dir}/HelloWorld/hello_world.tl`. We will proceed as follows.
 
 1. Change directory to the location of the file containing the Poseidon Lua program. We must do this for the Poseidon Lua compiler to function properly.
 

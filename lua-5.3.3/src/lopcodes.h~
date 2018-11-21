@@ -189,9 +189,7 @@ OP_CS_LOAD_CHAR,/*           A B C   R(A).gc := (R(A).p)[R(A+1).i]           */
 OP_CS_STORE_CHAR,/*          A B C   (R(A).p)[R(A+1).i] := R(A+2).gc         */
 OP_CS_LOAD_STRING,/*         A B C   R(A).gc := (R(A).p)[R(A+1).i]           */
 OP_CS_STORE_STRING,/*        A B C   (R(A).p)[R(A+1).i] := R(A+2).gc         */
-OP_CS_LOAD_CHECKED_NULL,/*   A B C   R(A) := (R(A).p == NULL) ? nil : R(A)   */
 
-OP_CS_STORE_NULL,/*          A B C   (R(A).p)[R(A+1).i] := NULL              */
 
 //@POSEIDON_LUA: END
 //============================================================================================
@@ -264,6 +262,19 @@ OP_EXTRAARG/*	Ax	extra (larger) argument for previous opcode	*/
 
 
 #define NUM_OPCODES	(cast(int, OP_EXTRAARG) + 1)
+
+
+
+//@POSEIDON_LUA: BEGIN
+//============================================================================================
+
+
+int is_CS_opcode ( int input_opcode ) ;
+
+
+//@POSEIDON_LUA: END
+//============================================================================================
+
 
 
 

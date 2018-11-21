@@ -141,17 +141,45 @@ end
 local function get_interface (env, name, pos)
   local t = tlst.get_interface(env, name)
   if not t then
+
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+	print( "\n\n*** GET INTERFACE: COULD NOT FIND: " .. name .. " ***\n\n" )
+
+--[[ @POSEIDON_LUA: END ]]
+
+
     return tltype.GlobalVariable(env, name, pos, typeerror)
   else
     return t
   end
 end
 
+
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+
+local handle_error_message 
+
+local replace_names_struct
+
+
+--[[ @POSEIDON_LUA: END ]]
+
+
 local function replace_names (env, t, pos, ignore)
   ignore = ignore or {}
 
 
 --[[ @POSEIDON_LUA: BEGIN ]]
+
+	if t.struct then
+
+		return replace_names_struct(env, t, pos, ignore)
+
+	end --end if
 
 	if tltype.isPtr( t ) then
 		t[ 2 ] = replace_names(env, t[ 2 ], pos, ignore)
@@ -208,6 +236,98 @@ local function replace_names (env, t, pos, ignore)
     return t
   end
 end
+
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+function replace_names_struct (env, t, pos, ignore)
+
+	for k, _ in ipairs(t) do
+
+		local t_member = t[ k ][ 2 ]
+
+		if tltype.isPtr( t_member ) and tltype.isVariable( t_member[ 2 ] ) then
+
+			local t_variable = t_member[ 2 ]
+
+			if t_variable[ 1 ] == t.struct then
+
+				t_member[ 2 ] = t
+
+			else
+
+				t_member[ 2 ] = replace_names(env, t_member[ 2 ], pos, ignore)
+
+
+				t_member_base = t_member[ 2 ]
+
+				if ( not ( t_member_base.struct ) ) then
+
+					local msg = "Problem @ checker: ( replace_names_struct ) Struct " .. t.struct .. ": Member \"" .. tltype.tostring( t[ k ][ 1 ] ) .. "\" cannot be a ptr to a non-struct."
+					handle_error_message( env, "replace_names_struct", exp, msg )
+
+				end --end if
+
+			end --end else
+
+		end --end if
+
+	end --end for
+
+	return t
+
+end --end replace_names_struct
+
+
+
+function check_C_array (env, t, exp)
+
+	local arraySizeTable = t[ 1 ]
+
+	for k, _ in ipairs( arraySizeTable ) do
+
+
+		local arraySize = arraySizeTable[ k ]
+
+		if ( not ( arraySize >= 1 ) ) then
+
+			local msg = "Problem @ checker: ( check_C_array ) Array Size #" .. k .. ": ( " .. arraySize .. " >= 1 ) is NOT true."
+			handle_error_message( env, "check_C_array", exp, msg )
+
+		end --end if
+
+
+	end --end for
+
+	return t
+
+end --end check_C_array
+
+
+function check_struct (env, t, stm)
+
+	for k, _ in ipairs(t) do
+
+		local t_member = t[ k ][ 2 ]
+
+		if tltype.is_C_array( t_member ) then
+
+			check_C_array( env, t_member, stm )
+
+		end --end if
+
+	end --end for
+
+	return t
+
+end --end check_struct
+
+
+
+
+
+--[[ @POSEIDON_LUA: END ]]
+
 
 local function close_type (t)
   if tltype.isUnion(t) or
@@ -320,6 +440,17 @@ local function check_interface (env, stm)
     check_self(env, t, t, stm.pos)
     local t = replace_names(env, t, stm.pos)
     t.name = name
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+    if t.struct then
+
+      check_struct( env, t, stm )
+
+    end --end if
+
+--[[ @POSEIDON_LUA: END ]]
+
     tlst.set_interface(env, name, t, is_local)
   end
   return false
@@ -1941,7 +2072,33 @@ function handle_error_message ( env, err_name, exp, msg )
 	local bold_token = env.color and acolor.bold .. "'%s'" .. acolor.reset or "'%s'"
 	local err_msg = string.format( bold_token, msg )
 	typeerror( env, err_name, err_msg, exp.pos )
-end -- end handle_error_message
+end --end handle_error_message
+
+
+function is_subtype ( t1, t2, env, exp, print_error ) 
+
+	if tltype.subtype( t1, t2 ) then
+
+		return true
+
+	elseif tltype.consistent_subtype( t1, t2 ) then
+
+		if print_error then
+
+			local msg = "Problem @ checker: ( is_subtype ) EXPECTED: \"" .. tltype.tostring( t2 ) .. "\", RECEIVED: \"" .. tltype.tostring( t1 ) .. "\"."
+			handle_error_message( env, "any", exp, msg )
+
+		end --end if
+
+		return true
+
+	else
+
+		return false
+
+	end --end else
+
+end --end is_subtype
 
 
 
@@ -1952,409 +2109,671 @@ function check_Modified_Call ( env, exp )
 	if not funcName then
 		return false
 	end --end if
-print( "              UUUUUUUUUUUUUUUUUUUUUUU funcName: " .. funcName )
-	if funcName == "malloc" then
-print( "TAG check: " .. exp[2].tag )
-			set_type( exp, tltype.Any() )
-			set_ubound( exp, tltype.Any() )
 
-		local numArgs = #exp - 1
-		if numArgs == 0 then
-			local msg = "Problem @ checker: (malloc) No arguments."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
-		elseif numArgs > 2 then
-			local msg = "Problem @ checker: (malloc) Too many arguments."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
-		end --end if
 
-
-
-
-		if numArgs == 1 and exp[ 2 ].tag == "TPtr" and (not tltype.isVoid( exp[ 2 ][ 2 ] )) then
-
-			local interfaceName = exp[ 2 ][ 2 ][ 1 ]
-
-			if not interfaceName then
-
-				local msg = "Problem @ checker: (malloc) No interface name."
-				handle_error_message( env, "check_Modified_Call", exp, msg )
-				return true, false
-	
-			end --end if
-
-			t = tlst.get_interface( env, interfaceName )
-
-			if not t then
-				local msg = "Problem @ checker: (malloc) Interface \"" .. interfaceName .. "\" not found."
-				handle_error_message( env, "check_Modified_Call", exp, msg )
-				return true, false
-			end --end if
-
-			if not t.struct then
-				local msg = "Problem @ checker: (malloc) Interface \"" .. interfaceName .. "\" is not a struct."
-				handle_error_message( env, "check_Modified_Call", exp, msg )
-				return true, false
-			end --end if
-
-
-
-
---[[
-			local ident_env = tlast.ident( exp.pos, "_ENV" )
-			local string_indexer = tlast.exprString( exp.pos, "CS_malloc" )
-			exp[ 1 ] = { tag = "Index", pos = exp.pos, [1] = ident_env, [2] = string_indexer }
-
-]]
-
-			local exp_copy = {}
-			for k, v in pairs( exp ) do
-				exp_copy[ k ] = exp[ k ]
-			end --end for
-			for k, v in pairs( exp ) do
-				exp[ k ] = nil
-			end --end for
-
-			exp.tag = "Call"
-			exp.pos = exp_copy.pos
-			exp[ 1 ] = tlast.ident( exp_copy.pos, "CS_malloc" )
-			
-
-
-			local ptrTypeNode = exp_copy[ 2 ]
-
-			local mallocSize = 0
-
-			if ptrTypeNode[ 1 ] == 1 then
-
-				mallocSize = t.structInfo.size
-
-			elseif ptrTypeNode[ 1 ] > 1 then
-
-				mallocSize = 4
-
-			end --end if
-
-			exp[ 2 ] = tlast.exprNumber( exp_copy.pos, mallocSize )
-
---			check_exp( env, exp )
-
-			ptrTypeNode = replace_names(env, ptrTypeNode, exp_copy.pos)
-
-			set_type( exp, ptrTypeNode )
-			set_ubound( exp, ptrTypeNode )
-print( " > $ > $ TYPE: " .. tltype.tostring( get_type( exp ) ) )
-print( " > $ > $ UBOUND: " .. tltype.tostring( get_ubound( exp ) ) )
---[[
-			if exp.ubound then
-				set_ubound( exp, ptrTypeNode )
-			end --end if
-]]
-
-			return true, true
-
-		elseif numArgs == 1 and exp[ 2 ].tag == "TPtr" and tltype.isVoid( exp[ 2 ][ 2 ] ) then
-print( "INTEER 1  " .. tostring(exp[ 2 ] and exp[ 2 ].tag == "TPtr" and tltype.isVoid( exp[ 2 ][ 2 ] ) ))
-			if exp[ 2 ][ 1 ] == 1 then
-
-				local msg = "Problem @ checker: (malloc) \"malloc( ptr void )\" is undefined."
-				handle_error_message( env, "check_Modified_Call", exp, msg )
-print( "VOID POINTER " )
-				return true, false
-
-			elseif exp[ 2 ][ 1 ] > 1 then
-
-				local exp_copy = {}
-				for k, v in pairs( exp ) do
-					exp_copy[ k ] = exp[ k ]
-				end --end for
-				for k, v in pairs( exp ) do
-					exp[ k ] = nil
-				end --end for
-
-				exp.tag = "Call"
-				exp.pos = exp_copy.pos
-				exp[ 1 ] = tlast.ident( exp_copy.pos, "CS_malloc" )
-			
-
-
-				local ptrTypeNode = exp_copy[ 2 ]
-
-				local mallocSize = 4
-
-				
-				exp[ 2 ] = tlast.exprNumber( exp_copy.pos, mallocSize )
-
---				check_exp( env, exp )
-
---				ptrTypeNode = replace_names(env, ptrTypeNode, exp_copy.pos)
-
-				set_type( exp, ptrTypeNode )
-				set_ubound( exp, ptrTypeNode )
-
-				return true, true
-
-			end --end if
-
-		elseif numArgs == 1 and exp[ 2 ].tag == "Number" then
-
-				local exp_copy = {}
-				for k, v in pairs( exp ) do
-					exp_copy[ k ] = exp[ k ]
-				end --end for
-				for k, v in pairs( exp ) do
-					exp[ k ] = nil
-				end --end for
-
-				exp.tag = "Call"
-				exp.pos = exp_copy.pos
-				exp[ 1 ] = tlast.ident( exp_copy.pos, "CS_malloc" )
-			
-
-
-				local ptrTypeNode = tltype.Ptr( true, tltype.Void() ) 
-
-				local mallocSize = exp_copy[ 2 ][ 1 ]
-
-				
-				exp[ 2 ] = tlast.exprNumber( exp_copy.pos, mallocSize )
-
---				check_exp( env, exp )
-
---				ptrTypeNode = replace_names(env, ptrTypeNode, exp_copy.pos)
-
-				set_type( exp, ptrTypeNode )
-				set_ubound( exp, ptrTypeNode )
-
-				return true, true
-
-		elseif numArgs == 2 and exp[ 2 ].tag == "TPtr" and exp[ 3 ].tag == "Number" then
-
-				local exp_copy = {}
-				for k, v in pairs( exp ) do
-					exp_copy[ k ] = exp[ k ]
-				end --end for
-				for k, v in pairs( exp ) do
-					exp[ k ] = nil
-				end --end for
-
-				exp.tag = "Call"
-				exp.pos = exp_copy.pos
-				exp[ 1 ] = tlast.ident( exp_copy.pos, "CS_malloc" )
-			
-
-
-				local ptrTypeNode = exp_copy[ 2 ]
-
-				if (not tltype.isVoid( ptrTypeNode[ 2 ] )) then
-
-					ptrTypeNode = replace_names(env, ptrTypeNode, exp_copy.pos)
-
-				end --end if 
-
-				local mallocSize = exp_copy[ 3 ][ 1 ]
-
-				
-				exp[ 2 ] = tlast.exprNumber( exp_copy.pos, mallocSize )
-
---				check_exp( env, exp )
-
---				ptrTypeNode = replace_names(env, ptrTypeNode, exp_copy.pos)
-
-				set_type( exp, ptrTypeNode )
-				set_ubound( exp, ptrTypeNode )
-
-				return true, true
-
-		end --end if
-
-	elseif funcName == "free" then
+	if funcName == "sizeof" then
 
 		set_type( exp, tltype.Any() )
 		set_ubound( exp, tltype.Any() )
 
 		local numArgs = #exp - 1
 		if numArgs == 0 then
-			local msg = "Problem @ checker: (free) No arguments."
+			local msg = "Problem @ checker: ( check_Modified_Call ) Sizeof: No arguments."
 			handle_error_message( env, "check_Modified_Call", exp, msg )
 			return true, false
 		elseif numArgs > 1 then
-			local msg = "Problem @ checker: (free) Too many arguments."
+			local msg = "Problem @ checker: ( check_Modified_Call ) Sizeof: Too many arguments."
 			handle_error_message( env, "check_Modified_Call", exp, msg )
 			return true, false
 		end --end if
+
+
+
+
+		local t_result
+
+		local valueSize_exp
+
+		local t_typeNode
+
+		local t_Integer = tltype.Integer( true )
+
+
+
+		if numArgs == 1 then
+
+			t_typeNode = replace_names(env, exp[ 2 ], exp.pos)
+
+			t_result = t_Integer
+
+
+			local t_valueSize = t_typeNode
+
+			local valueSize
+			if tltype.is_C_BaseType( t_valueSize ) then
+				valueSize = tltype.C_sizeTable[ t_valueSize[ 1 ] ]
+			elseif tltype.isPtr( t_valueSize ) then
+				valueSize = tltype.C_sizeTable[ "pointer" ]
+			elseif tltype.is_C_array( t_valueSize ) then
+				local arraySizeTable = t_valueSize[ 1 ]
+				local arrayOffsetTable = {}
+
+				local typeNodeSize
+				if tltype.is_C_BaseType( t_valueSize[ 2 ] ) then
+					typeNodeSize = tltype.C_sizeTable[ t_valueSize[ 2 ][ 1 ] ]
+				elseif tltype.isPtr( t_valueSize[ 2 ] ) then
+					typeNodeSize = tltype.C_sizeTable[ "pointer" ]
+				end --end if
+
+				arrayOffsetTable[ #arraySizeTable ] = typeNodeSize
+
+				for i = #arraySizeTable - 1, 1, -1 do
+					arrayOffsetTable[ i ] = arraySizeTable[ i + 1 ] * 
+								arrayOffsetTable[ i + 1 ]
+				end --end for
+
+				t_valueSize.offsetTable = arrayOffsetTable
+
+				valueSize = arraySizeTable[ 1 ] * arrayOffsetTable[ 1 ]
+
+
+				check_C_array( env, t_valueSize, exp )
+
+			elseif t_valueSize.struct then
+				valueSize = t_valueSize.structInfo.size
+			else
+
+				local msg = "Problem @ checker: ( check_Modified_Call ) Sizeof: Incorrect 1st argument. Could not find the size of \"" .. tltype.tostring( t_valueSize ) .. "\"."
+				handle_error_message( env, "check_Modified_Call", exp, msg )
+				return true, false
+
+			end --end else
+
+
+			valueSize_exp = tlast.exprNumber( exp.pos, valueSize )
+
+
+		end --end if
+
+
+
+		local exp_copy = {}
+		for k, v in pairs( exp ) do
+			exp_copy[ k ] = exp[ k ]
+		end --end for
+		for k, v in pairs( exp ) do
+			exp[ k ] = nil
+		end --end for
+
+
+		for k, v in pairs( valueSize_exp ) do
+			exp[ k ] = valueSize_exp[ k ]
+		end --end for
+
+
+
+		set_type( exp, t_result )
+		set_ubound( exp, t_result )
+
+
+		return true, true
+
+
+
+
+
+	elseif funcName == "malloc" then
+
+		set_type( exp, tltype.Any() )
+		set_ubound( exp, tltype.Any() )
+
+		local numArgs = #exp - 1
+		if numArgs == 0 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) Malloc: No arguments."
+			handle_error_message( env, "check_Modified_Call", exp, msg )
+			return true, false
+		elseif numArgs > 2 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) Malloc: Too many arguments."
+			handle_error_message( env, "check_Modified_Call", exp, msg )
+			return true, false
+		end --end if
+
+
+
+
+		local t_result
+
+		local ident_CS_malloc = tlast.ident( exp.pos, "CS_malloc" )
+		local mallocSize_exp
+
+		local t_typeNode
+		local t_mallocSizeNode
+
+		local t_Integer = tltype.Integer( true )
+
+
+
+		if numArgs == 1 then
+
+			if tltype.isPtr( exp[ 2 ] ) then
+
+				t_typeNode = replace_names(env, exp[ 2 ], exp.pos)
+
+				t_result = t_typeNode
+
+				if tltype.isPtr( t_typeNode ) and t_typeNode[ 1 ] == 1 and tltype.is_C_void( t_typeNode[ 2 ] ) then
+
+					local msg = "Problem @ checker: ( check_Modified_Call ) Malloc: \"malloc( ptr void )\" is undefined."
+					handle_error_message( env, "check_Modified_Call", exp, msg )
+					return true, false
+
+				end --end if
+
+
+				local t_valueSize = t_typeNode[ 2 ]
+
+				local valueSize
+
+				if tltype.isPtr( t_typeNode ) and t_typeNode[ 1 ] > 1 then
+
+					valueSize = tltype.C_sizeTable[ "pointer" ]
+
+				elseif tltype.isPtr( t_typeNode ) and t_typeNode[ 1 ] == 1 then
+
+					if tltype.is_C_BaseType( t_valueSize ) then
+						valueSize = tltype.C_sizeTable[ t_valueSize[ 1 ] ]
+					elseif t_valueSize.struct then
+						valueSize = t_valueSize.structInfo.size
+					else
+
+						local msg = "Problem @ checker: ( check_Modified_Call ) Malloc: Incorrect 1st argument. Could not find the size of \"" .. tltype.tostring( t_typeNode ) .. "\"."
+						handle_error_message( env, "check_Modified_Call", exp, msg )
+						return true, false
+
+					end --end else
+
+				end --end if
+
+				mallocSize_exp = tlast.exprNumber( exp.pos, valueSize )
+
+
+			else
+
+				check_exp( env, exp[ 2 ] )
+
+				t_mallocSizeNode = get_type( exp[ 2 ] )
+
+
+				if is_subtype( t_mallocSizeNode, tltype.Integer( true ), env, exp, true ) then
+
+					t_result = tltype.Ptr( true, tltype.C_void() ) 
+
+					mallocSize_exp = exp[ 2 ]
+
+				else
+
+					local msg = "Problem @ checker: ( check_Modified_Call ) Malloc: Incorrect 1st argument. First argument should either be a \"ptr\" type expression, or an expression that is of a subtype of Base-Integer.\nRECEIVED: \"" .. tltype.tostring( t_mallocSizeNode ) .. "\"."
+					handle_error_message( env, "check_Modified_Call", exp, msg )
+					return true, false
+
+				end --end else
+
+			end --end else
+
+
+
+		elseif numArgs == 2 then
+
+			if tltype.isPtr( exp[ 2 ] ) then
+
+				t_typeNode = replace_names(env, exp[ 2 ], exp.pos)
+
+				t_result = t_typeNode
+
+
+				check_exp( env, exp[ 3 ] )
+
+				t_mallocSizeNode = get_type( exp[ 3 ] )
+
+
+				if is_subtype( t_mallocSizeNode, tltype.Integer( true ), env, exp, true ) then
+
+					mallocSize_exp = exp[ 3 ]
+
+				else
+
+					local msg = "Problem @ checker: ( check_Modified_Call ) Malloc: Incorrect 2nd argument. Second argument should be an expression that is of a subtype of Base-Integer.\nRECEIVED: \"" .. tltype.tostring( t_mallocSizeNode ) .. "\"."
+					handle_error_message( env, "check_Modified_Call", exp, msg )
+					return true, false
+
+				end --end else
+
+			else
+
+				local msg = "Problem @ checker: ( check_Modified_Call ) Malloc: Incorrect 1st argument. First argument should be a \"ptr\" type expression."
+				handle_error_message( env, "check_Modified_Call", exp, msg )
+				return true, false
+
+			end --end else
+
+
+
+		end --end if
+
+
+
+		local exp_copy = {}
+		for k, v in pairs( exp ) do
+			exp_copy[ k ] = exp[ k ]
+		end --end for
+		for k, v in pairs( exp ) do
+			exp[ k ] = nil
+		end --end for
+
+		exp.tag = "Call"
+		exp.pos = exp_copy.pos
+		exp[ 1 ] = ident_CS_malloc
+		exp[ 2 ] = mallocSize_exp
+
+
+		set_type( exp, t_result )
+		set_ubound( exp, t_result )
+
+
+
+		return true, true
+
+
+
+
+	elseif funcName == "free" then
+
+
+		set_type( exp, tltype.Any() )
+		set_ubound( exp, tltype.Any() )
+
+		local numArgs = #exp - 1
+		if numArgs == 0 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) Free: No arguments."
+			handle_error_message( env, "check_Modified_Call", exp, msg )
+			return true, false
+		elseif numArgs > 1 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) Free: Too many arguments."
+			handle_error_message( env, "check_Modified_Call", exp, msg )
+			return true, false
+		end --end if
+
+
+
+
+		local t_result
+
+		local ident_CS_free = tlast.ident( exp.pos, "CS_free" )
+		local freeArg_exp
+
+		local t_freeArgNode
+
+		local t_ptr_void = tltype.Ptr( true, tltype.C_void() )
 
 
 		if numArgs == 1 then
 
 			check_exp( env, exp[ 2 ] )
-print( "> GET TYPE : " .. tltype.tostring( get_type( exp[ 2 ] ) ) )
-print( "> GET UBOUND : " .. tostring(exp[ 2 ].ubound) )
-			t = get_type( exp[ 2 ] )
---			t_ubound = get_ubound( exp[ 2 ] )			
 
-			if (not tltype.isPtr(t)) then
-				local msg = "Problem @ checker: (free) First argument is not a Ptr."
+			t_freeArgNode = get_type( exp[ 2 ] )
+
+
+			t_freeArgNode = replace_names(env, t_freeArgNode, exp.pos)
+
+			t_result = t_freeArgNode
+
+
+			if is_subtype( t_freeArgNode, t_ptr_void, env, exp, true ) then
+
+				freeArg_exp = exp[ 2 ]
+
+			else
+
+				local msg = "Problem @ checker: ( check_Modified_Call ) Free: Incorrect 1st argument. First argument should be an expression that is of a subtype of \"ptr void\".\nRECEIVED: \"" .. tltype.tostring( t_freeArgNode ) .. "\"."
 				handle_error_message( env, "check_Modified_Call", exp, msg )
 				return true, false
-			end --end if
 
-			if tltype.isPtr( t ) then
-print( " **** **** DONE" )
-				set_type( exp, t )
---				set_ubound( exp, t_ubound )
-print( "***** ***** FINAL TYPE: " .. tltype.tostring( get_type( exp ) ) )
-
-			exp[ 1 ] = tlast.ident( exp.pos, "CS_free" )
-
-				return true, true
-			end --end if
+			end --end else
 
 		end --end if
 
 
-	elseif funcName == "CS_loadInt" then
 
-		local numArgs = #exp - 1
-		if not ( numArgs == 2 ) then
-			local msg = "Problem @ checker: (CS_loadInt) Wrong number of arguments: " .. numArgs .. "."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
-		end --end if
+		local exp_copy = {}
+		for k, v in pairs( exp ) do
+			exp_copy[ k ] = exp[ k ]
+		end --end for
+		for k, v in pairs( exp ) do
+			exp[ k ] = nil
+		end --end for
 
-		check_exp( env, exp[ 2 ] )
-		check_exp( env, exp[ 3 ] )
+		exp.tag = "Call"
+		exp.pos = exp_copy.pos
+		exp[ 1 ] = ident_CS_free
+		exp[ 2 ] = freeArg_exp
 
-		local t = get_type( exp[ 2 ] )
 
-		if not t.struct then
+		set_type( exp, t_result )
+		set_ubound( exp, t_result )
 
-			local msg = "Problem @ checker: (CS_loadInt) First argument is not a struct."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
 
-		elseif not tltype.isInt( get_type( exp[ 3 ] ) ) then
-
-			local msg = "Problem @ checker: (CS_loadInt) Second argument is not an integer."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
-
-		end --end if
-
-		set_type( exp, t )
-		set_ubound( exp, t )
 
 		return true, true
 
-	elseif funcName == "CS_loadDouble" then
+
+
+
+
+
+	elseif funcName == "CS_malloc" or
+	       funcName == "CS_free" or
+	       funcName == "CS_loadChar" or
+	       funcName == "CS_loadInt" or
+	       funcName == "CS_loadDouble" or 
+	       funcName == "CS_loadBool" or 
+	       funcName == "CS_loadPointer" or
+	       funcName == "CS_loadOffset" or 
+	       funcName == "CS_loadString" or
+	       funcName == "CS_storeChar" or
+	       funcName == "CS_storeInt" or
+	       funcName == "CS_storeDouble" or 
+	       funcName == "CS_storeBool" or 
+	       funcName == "CS_storePointer" or
+	       funcName == "CS_storeString" then
+
+
+
+		set_type( exp, tltype.Any() )
+		set_ubound( exp, tltype.Any() )
+
+
+		local msg = "Problem @ checker: ( check_Modified_Call ) " .. funcName .. ": Reserved operator."
+		handle_error_message( env, "check_Modified_Call", exp, msg )
+		return true, false
+
+
+
+
+	elseif funcName == "CS_loadChar" or
+	       funcName == "CS_loadInt" or
+	       funcName == "CS_loadDouble" or 
+	       funcName == "CS_loadBool" or 
+	       funcName == "CS_loadPointer" or
+	       funcName == "CS_loadOffset" or 
+	       funcName == "CS_loadString" then
+
+
+		set_type( exp, tltype.Any() )
+		set_ubound( exp, tltype.Any() )
 
 		local numArgs = #exp - 1
-		if not ( numArgs == 2 ) then
-			local msg = "Problem @ checker: (CS_loadDouble) Wrong number of arguments: " .. numArgs .. "."
+		if numArgs < 2 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) " .. funcName .. ": Not enough arguments."
+			handle_error_message( env, "check_Modified_Call", exp, msg )
+			return true, false
+		elseif numArgs > 2 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) " .. funcName .. ": Too many arguments."
 			handle_error_message( env, "check_Modified_Call", exp, msg )
 			return true, false
 		end --end if
 
-		check_exp( env, exp[ 2 ] )
-		check_exp( env, exp[ 3 ] )
 
-		local t = get_type( exp[ 2 ] )
 
-		if not t.struct then
 
-			local msg = "Problem @ checker: (CS_loadDouble) First argument is not a struct."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
+		local t_result
 
-		elseif not tltype.isFloat( get_type( exp[ 3 ] ) ) then
+		local t_argNode_1
+		local t_argNode_2
 
-			local msg = "Problem @ checker: (CS_loadDouble) Second argument is not a float."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
+		local t_ptr_void = tltype.Ptr( true, tltype.C_void() )
+		local t_Integer = tltype.Integer( true )
+
+
+
+		if numArgs == 2 then
+
+			check_exp( env, exp[ 2 ] )
+			check_exp( env, exp[ 3 ] )
+
+			t_argNode_1 = get_type( exp[ 2 ] )
+			t_argNode_2 = get_type( exp[ 3 ] )
+
+
+			t_argNode_1 = replace_names(env, t_argNode_1, exp.pos)
+			t_argNode_2 = replace_names(env, t_argNode_2, exp.pos)
+
+
+			local input_arg_types = {
+
+				[ 1 ] = t_argNode_1,
+				[ 2 ] = t_argNode_2
+
+			}
+
+			local required_arg_types = {
+
+				[ 1 ] = t_ptr_void,
+				[ 2 ] = t_Integer
+
+			}
+
+
+			for k, v in ipairs( input_arg_types ) do
+
+				if ( not is_subtype( input_arg_types[ k ], required_arg_types[ k ], env, exp, true ) ) then
+
+					local msg = "Problem @ checker: ( check_Modified_Call ) " .. funcName .. ": Incorrect argument #" .. k .. ".\nREQUIRED: \"" .. tltype.tostring( required_arg_types[ k ] ) .. "\".\nRECEIVED: \"" .. tltype.tostring( input_arg_types[ k ] ) .. "\"."
+					handle_error_message( env, "check_Modified_Call", exp, msg )
+					return true, false
+
+				end --end if
+
+			end --end for
+
+
+			if funcName == "CS_loadChar" then
+
+				t_result = tltype.String()
+
+			elseif funcName == "CS_loadInt" then
+
+				t_result = tltype.Integer( true )
+
+			elseif funcName == "CS_loadDouble" then 
+
+				t_result = tltype.Number()
+
+			elseif funcName == "CS_loadBool" then 
+
+				t_result = tltype.Boolean()
+
+			elseif funcName == "CS_loadPointer" then
+
+				t_result = t_ptr_void
+
+			elseif funcName == "CS_loadOffset" then 
+
+				t_result = t_ptr_void
+
+			elseif funcName == "CS_loadString" then
+
+				t_result = tltype.String()
+
+			end --end if
+
 
 		end --end if
 
-		set_type( exp, t )
-		set_ubound( exp, t )
 
-	elseif funcName == "CS_storeInt" then
 
-		local numArgs = #exp - 1
-		if not ( numArgs == 3 ) then
-			local msg = "Problem @ checker: (CS_storeInt) Wrong number of arguments: " .. numArgs .. "."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
-		end --end if
+		local exp_copy = {}
+		for k, v in pairs( exp ) do
+			exp_copy[ k ] = exp[ k ]
+		end --end for
+		for k, v in pairs( exp ) do
+			exp[ k ] = nil
+		end --end for
 
-		check_exp( env, exp[ 2 ] )
-		check_exp( env, exp[ 3 ] )
-		check_exp( env, exp[ 4 ] )
-print( "   UUUUUUUUUUUUU exp[4].tag: " .. exp[4].tag )
-		local t = get_type( exp[ 2 ] )
---[[
-		if not t.struct then
+		exp.tag = "Call"
+		exp.pos = exp_copy.pos
+		exp[ 1 ] = exp_copy[ 1 ]
+		exp[ 2 ] = exp_copy[ 2 ]
+		exp[ 3 ] = exp_copy[ 3 ]
 
-			local msg = "Problem @ checker: (CS_storeInt) First argument is not a struct."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
 
-		elseif not tltype.isInt( get_type( exp[ 3 ] ) ) then
+		set_type( exp, t_result )
+		set_ubound( exp, t_result )
 
-			local msg = "Problem @ checker: (CS_storeInt) Second argument is not an integer."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
 
-		elseif not tltype.isInteger( get_type( exp[ 4 ] ) ) then
-
-			local msg = "Problem @ checker: (CS_storeInt) Third argument is not an integer."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
-
-		end --end if
-]]
-		set_type( exp, t )
-		set_ubound( exp, t )
 
 		return true, true
 
-	elseif funcName == "CS_storeDouble" then
+
+
+	elseif funcName == "CS_storeChar" or
+	       funcName == "CS_storeInt" or
+	       funcName == "CS_storeDouble" or 
+	       funcName == "CS_storeBool" or 
+	       funcName == "CS_storePointer" or
+	       funcName == "CS_storeString" then
+
+
+		set_type( exp, tltype.Any() )
+		set_ubound( exp, tltype.Any() )
 
 		local numArgs = #exp - 1
-		if not ( numArgs == 3 ) then
-			local msg = "Problem @ checker: (CS_storeDouble) Wrong number of arguments: " .. numArgs .. "."
+		if numArgs < 3 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) " .. funcName .. ": Not enough arguments."
+			handle_error_message( env, "check_Modified_Call", exp, msg )
+			return true, false
+		elseif numArgs > 3 then
+			local msg = "Problem @ checker: ( check_Modified_Call ) " .. funcName .. ": Too many arguments."
 			handle_error_message( env, "check_Modified_Call", exp, msg )
 			return true, false
 		end --end if
 
-		check_exp( env, exp[ 2 ] )
-		check_exp( env, exp[ 3 ] )
-		check_exp( env, exp[ 4 ] )
 
-		local t = get_type( exp[ 2 ] )
 
-		if not t.struct then
 
-			local msg = "Problem @ checker: (CS_storeDouble) First argument is not a struct."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
+		local t_result
 
-		elseif not tltype.isInt( get_type( exp[ 3 ] ) ) then
+		local t_argNode_1
+		local t_argNode_2
+		local t_argNode_3
 
-			local msg = "Problem @ checker: (CS_storeDouble) Second argument is not an integer."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
+		local t_ptr_void = tltype.Ptr( true, tltype.C_void() )
+		local t_Integer = tltype.Integer( true )
 
-		elseif not tltype.isFloat( get_type( exp[ 4 ] ) ) then
 
-			local msg = "Problem @ checker: (CS_storeDouble) Third argument is not a float."
-			handle_error_message( env, "check_Modified_Call", exp, msg )
-			return true, false
+
+		if numArgs == 3 then
+
+			check_exp( env, exp[ 2 ] )
+			check_exp( env, exp[ 3 ] )
+			check_exp( env, exp[ 4 ] )
+
+			t_argNode_1 = get_type( exp[ 2 ] )
+			t_argNode_2 = get_type( exp[ 3 ] )
+			t_argNode_3 = get_type( exp[ 4 ] )
+
+
+			t_argNode_1 = replace_names(env, t_argNode_1, exp.pos)
+			t_argNode_2 = replace_names(env, t_argNode_2, exp.pos)
+			t_argNode_3 = replace_names(env, t_argNode_3, exp.pos)
+
+
+			local input_arg_types = {
+
+				[ 1 ] = t_argNode_1,
+				[ 2 ] = t_argNode_2,
+				[ 3 ] = t_argNode_3
+
+			}
+
+			local required_arg_types = {
+
+				[ 1 ] = t_ptr_void,
+				[ 2 ] = t_Integer
+
+			}
+
+
+			if funcName == "CS_storeChar" then
+
+				required_arg_types[ 3 ] = tltype.String()
+
+			elseif funcName == "CS_storeInt" then
+
+				required_arg_types[ 3 ] = tltype.Integer( true )
+
+			elseif funcName == "CS_storeDouble" then 
+
+				required_arg_types[ 3 ] = tltype.Number()
+
+			elseif funcName == "CS_storeBool" then 
+
+				required_arg_types[ 3 ] = tltype.Boolean()
+
+			elseif funcName == "CS_storePointer" then
+
+				required_arg_types[ 3 ] = t_ptr_void
+
+			elseif funcName == "CS_storeString" then
+
+				required_arg_types[ 3 ] = tltype.String()
+
+			end --end if
+
+
+			for k, v in ipairs( input_arg_types ) do
+
+				if ( not is_subtype( input_arg_types[ k ], required_arg_types[ k ], env, exp, true ) ) then
+
+					local msg = "Problem @ checker: ( check_Modified_Call ) " .. funcName .. ": Incorrect argument #" .. k .. ".\nREQUIRED: \"" .. tltype.tostring( required_arg_types[ k ] ) .. "\".\nRECEIVED: \"" .. tltype.tostring( input_arg_types[ k ] ) .. "\"."
+					handle_error_message( env, "check_Modified_Call", exp, msg )
+					return true, false
+
+				end --end if
+
+			end --end for
+
+
+			t_result = input_arg_types[ 1 ]
+
 
 		end --end if
 
-		set_type( exp, t )
-		set_ubound( exp, t )
+
+
+		local exp_copy = {}
+		for k, v in pairs( exp ) do
+			exp_copy[ k ] = exp[ k ]
+		end --end for
+		for k, v in pairs( exp ) do
+			exp[ k ] = nil
+		end --end for
+
+		exp.tag = "Call"
+		exp.pos = exp_copy.pos
+		exp[ 1 ] = exp_copy[ 1 ]
+		exp[ 2 ] = exp_copy[ 2 ]
+		exp[ 3 ] = exp_copy[ 3 ]
+		exp[ 4 ] = exp_copy[ 4 ]
+
+
+		set_type( exp, t_result )
+		set_ubound( exp, t_result )
+
+
+
+		return true, true
+
+
 
 	end --end if
 
@@ -2363,70 +2782,201 @@ end --end check_Modified_Call
 
 
 function check_Modified_Index ( env, exp )
-print( "   >>> CHECK MODIFIED INDEX  baseExp[1]: " .. exp[2][1]  )
+
+
 	local base_exp = exp[ 1 ]
 	local indexer_exp = exp[ 2 ]
 
-	local t_base = get_type( base_exp )
-	local t_indexer = get_type( indexer_exp )
---print( "   %%%%%%%% t: " .. tltype.tostring(t) .. ", t_indexer: " .. tltype.tostring(t_indexer) )
-	if tltype.isPtr( t_base ) and t_base[ 1 ] == 1 and t_base[ 2 ].struct then
-print( "   >>>  CHECK MODIFIED INDEX: struct :: base_id : " .. indexer_exp[1]  )
-		local t = t_base[ 2 ]
-		local t_member
-		local t_member_translated
-		for _, v in ipairs( t ) do
-			if v[ 1 ][ 1 ] == t_indexer[ 1 ] then
-				t_member = v[ 2 ]
-			end --end if
-		end --end for
+	local t_base = replace_names( env, get_type( base_exp ), exp.pos )
+	local t_indexer = replace_names( env, get_type( indexer_exp ), exp.pos )
 
-		local ident_load
-		if tltype.isC_char( t_member ) then
-			ident_load = tlast.ident( exp.pos, "CS_loadChar" )
-			t_member_translated = tltype.String()	
-		elseif tltype.isC_int( t_member ) then
-			ident_load = tlast.ident( exp.pos, "CS_loadInt" )
-			t_member_translated = tltype.Integer( true )	
-		elseif tltype.isC_double( t_member ) then 
-			ident_load = tlast.ident( exp.pos, "CS_loadDouble" )
-			t_member_translated = tltype.Number()	
-		elseif tltype.isPtr( t_member ) then
-			ident_load = tlast.ident( exp.pos, "CS_loadPointer" )
-			t_member_translated = replace_names( env, t_member, exp.pos )
-		elseif tltype.is_C_array( t_member ) then 
-			ident_load = tlast.ident( exp.pos, "CS_loadOffset" )
-			t_member_translated = replace_names( env, t_member, exp.pos )	
+
+	if tltype.isPtr( t_base ) then
+
+		set_type( exp, tltype.Any() )
+		set_ubound( exp, tltype.Any() )
+
+
+		if t_base[ 1 ] == 1 and tltype.is_C_void( t_base[ 2 ] ) then
+			local msg = "Problem @ checker: ( check_Modified_Index ) Cannot dereference \"ptr void\"."
+			handle_error_message( env, "check_Modified_Index", exp, msg )
+			return false
 		end --end if
 
 
-		local exp_pos = exp.pos
+
+		local t = t_base[ 2 ]
+		local t_member
+		local t_member_translated
+		local ident_load
+		local offset_exp
+
+
+		if is_subtype( t_indexer, tltype.Integer( true ), env, exp, true ) then
+
+			if t_base[ 1 ] > 1 then
+
+				ident_load = tlast.ident( exp.pos, "CS_loadPointer" )
+
+
+				t_member_translated = {}
+
+				for k, _ in pairs( t_base ) do
+					t_member_translated[ k ] = t_base[ k ]
+				end --end for
+
+				t_member_translated[ 1 ] = t_member_translated[ 1 ] - 1
+
+				t_member = t_member_translated
+
+
+				local unit_offset_exp = tlast.exprNumber( exp.pos, tltype.C_sizeTable[ "pointer" ] )
+				offset_exp = tlast.exprBinaryOp( unit_offset_exp, "mul", indexer_exp )
+
+			elseif t_base[ 1 ] == 1 then
+
+				t_member = t_base[ 2 ]
+
+				if tltype.is_C_BaseType( t_member ) then
+
+					if tltype.is_C_char( t_member ) then
+						ident_load = tlast.ident( exp.pos, "CS_loadChar" )
+						t_member_translated = tltype.String()	
+					elseif tltype.is_C_int( t_member ) then
+						ident_load = tlast.ident( exp.pos, "CS_loadInt" )
+						t_member_translated = tltype.Integer( true )	
+					elseif tltype.is_C_double( t_member ) then 
+						ident_load = tlast.ident( exp.pos, "CS_loadDouble" )
+						t_member_translated = tltype.Number()
+					elseif tltype.is_C_bool( t_member ) then 
+						ident_load = tlast.ident( exp.pos, "CS_loadBool" )
+						t_member_translated = tltype.Boolean()
+					end --end if
+
+					local unit_offset_exp = tlast.exprNumber( exp.pos, tltype.C_sizeTable[ t_member[ 1 ] ] )
+					offset_exp = tlast.exprBinaryOp( unit_offset_exp, "mul", indexer_exp )
+
+				elseif t_member.struct then
+
+					ident_load = tlast.ident( exp.pos, "CS_loadOffset" )
+
+
+					t_member_translated = {}
+
+					for k, _ in pairs( t_base ) do
+						t_member_translated[ k ] = t_base[ k ]
+					end --end for
+
+
+					local unit_offset_exp = tlast.exprNumber( exp.pos, t_member.structInfo.size )
+					offset_exp = tlast.exprBinaryOp( unit_offset_exp, "mul", indexer_exp )
+
+
+				end --end if
+
+
+			end --end if
+
+		elseif tltype.isStr( t_indexer ) then
+
+			if ( not t_base[ 2 ].struct )  then
+				local msg = "Problem @ checker: ( check_Modified_Index ) Cannot index \"" .. tltype.tostring( t_base ) .. "\" with a Literal-String, since it is not a ptr to a struct."
+				handle_error_message( env, "check_Modified_Index", exp, msg )
+				return false
+			end --end if
+
+
+
+			for _, v in ipairs( t ) do
+				if v[ 1 ][ 1 ] == t_indexer[ 1 ] then
+					t_member = v[ 2 ]
+				end --end if
+			end --end for
+
+
+			if ( not t_member )  then
+				local msg = "Problem @ checker: ( check_Modified_Index ) No such member. \"" .. tltype.tostring( t_base ) .. "\" has no member named \"" .. t_indexer[ 1 ] .. "\"."
+				handle_error_message( env, "check_Modified_Index", exp, msg )
+				return false
+			end --end if
+
+
+
+			if tltype.is_C_char( t_member ) then
+				ident_load = tlast.ident( exp.pos, "CS_loadChar" )
+				t_member_translated = tltype.String()
+			elseif tltype.is_C_int( t_member ) then
+				ident_load = tlast.ident( exp.pos, "CS_loadInt" )
+				t_member_translated = tltype.Integer( true )
+			elseif tltype.is_C_double( t_member ) then 
+				ident_load = tlast.ident( exp.pos, "CS_loadDouble" )
+				t_member_translated = tltype.Number()
+			elseif tltype.is_C_bool( t_member ) then 
+				ident_load = tlast.ident( exp.pos, "CS_loadBool" )
+				t_member_translated = tltype.Boolean()
+			elseif tltype.isPtr( t_member ) then
+				ident_load = tlast.ident( exp.pos, "CS_loadPointer" )
+				t_member_translated = replace_names( env, t_member, exp.pos )
+			elseif tltype.is_C_array( t_member ) then 
+				ident_load = tlast.ident( exp.pos, "CS_loadOffset" )
+				t_member_translated = replace_names( env, t_member, exp.pos )
+			end --end if
+
+
+			offset_exp = tlast.exprNumber( exp.pos, t.structInfo.offsetTable[ t_indexer[ 1 ] ] )
+
+		else
+
+			local msg = "Problem @ checker: ( check_Modified_Index ) Can only index \"" .. tltype.tostring( t_base ) .. "\" with a subtype of Base-Integer or with a Literal-Str."
+			handle_error_message( env, "check_Modified_Index", exp, msg )
+			return false
+
+		end --end else
+
+
+
+		local exp_copy = {}
+		for k, _ in pairs( exp ) do
+			exp_copy[ k ] = exp[ k ]
+		end --end for
+
+
 		for k, _ in pairs( exp ) do
 			exp[ k ] = nil
 		end --end for
 
 		exp.tag = "Call"
-		exp.pos = exp_pos
+		exp.pos = exp_copy.pos
 		exp[ 1 ] = ident_load
 		exp[ 2 ] = base_exp
-		exp[ 3 ] = tlast.exprNumber( exp_pos, t.structInfo.offsetTable[ t_indexer[ 1 ] ] )
+		exp[ 3 ] = offset_exp
 
---		check_exp( env, exp[ 1 ] )
---		check_exp( env, exp[ 3 ] )
---print( "$$$$$$$$$$$$ HHHHH EEEE  RRR   EEEE   " .. t_member_translated[ 1 ] )
+
 		set_type( exp, t_member_translated )
 		set_ubound( exp, t_member_translated )
---print("CHECK MODIFIED INDEX, final type t : " .. tltype.tostring(t_member_translated) .. ", t.tag : " .. t_member_translated.tag)
 
 
+	elseif tltype.is_C_array( t_base ) then
 
-	elseif tltype.is_C_array( t_base ) and tltype.isInt( t_indexer ) then
-print( "   >>>  CHECK MODIFIED INDEX: struct :: base_id : " .. indexer_exp[1]  )
+
+		if ( not is_subtype( t_indexer, tltype.Integer( true ), env, exp, true ) ) then
+
+			local msg = "Problem @ checker: ( check_Modified_Index ) Can only index \"" .. tltype.tostring( t_base ) .. "\" with a subtype of Base-Integer."
+			handle_error_message( env, "check_Modified_Index", exp, msg )
+			return false
+
+		end --end if
+
+
 		local t = t_base
 		local t_member
 		local t_member_translated
+		local offset_exp
 
-		local offsetValue = t.offsetTable[ 1 ] * t_indexer[ 1 ]
+
+		local unit_offset_exp = tlast.exprNumber( exp.pos, t.offsetTable[ 1 ] )
+		offset_exp = tlast.exprBinaryOp( unit_offset_exp, "mul", indexer_exp )
+
 
 		local ident_load
 		if #t.offsetTable > 1 then
@@ -2438,9 +2988,9 @@ print( "   >>>  CHECK MODIFIED INDEX: struct :: base_id : " .. indexer_exp[1]  )
 				t_member_translated[ k ] = t[ k ]
 			end --end for
 
-			t_member_translated[ 2 ] = {}
-			for k, _ in pairs( t[ 2 ] ) do
-				t_member_translated[ 2 ][ k ] = t[ 2 ][ k ]
+			t_member_translated[ 1 ] = {}
+			for k, _ in pairs( t[ 1 ] ) do
+				t_member_translated[ 1 ][ k ] = t[ 1 ][ k ]
 			end --end for
 
 			t_member_translated.offsetTable = {}
@@ -2448,23 +2998,26 @@ print( "   >>>  CHECK MODIFIED INDEX: struct :: base_id : " .. indexer_exp[1]  )
 				t_member_translated.offsetTable[ k ] = t.offsetTable[ k ]
 			end --end for
 
-			table.remove( t_member_translated[ 2 ], 1 )
+			table.remove( t_member_translated[ 1 ], 1 )
 			table.remove( t_member_translated.offsetTable, 1 )
 
 		elseif #t.offsetTable == 1 then
 
-			if tltype.isC_char( t[ 1 ] ) then
+			if tltype.is_C_char( t[ 2 ] ) then
 				ident_load = tlast.ident( exp.pos, "CS_loadChar" )
-				t_member_translated = tltype.String()	
-			elseif tltype.isC_int( t[ 1 ] ) then
+				t_member_translated = tltype.String()
+			elseif tltype.is_C_int( t[ 2 ] ) then
 				ident_load = tlast.ident( exp.pos, "CS_loadInt" )
-				t_member_translated = tltype.Integer( true )	
-			elseif tltype.isC_double( t[ 1 ] ) then 
+				t_member_translated = tltype.Integer( true )
+			elseif tltype.is_C_double( t[ 2 ] ) then 
 				ident_load = tlast.ident( exp.pos, "CS_loadDouble" )
-				t_member_translated = tltype.Number()	
-			elseif tltype.isPtr( t[ 1 ] ) then
+				t_member_translated = tltype.Number()
+			elseif tltype.is_C_bool( t[ 2 ] ) then 
+				ident_load = tlast.ident( exp.pos, "CS_loadBool" )
+				t_member_translated = tltype.Boolean()
+			elseif tltype.isPtr( t[ 2 ] ) then
 				ident_load = tlast.ident( exp.pos, "CS_loadPointer" )
-				t_member_translated = replace_names( env, t[ 1 ], exp.pos )	
+				t_member_translated = replace_names( env, t[ 2 ], exp.pos )
 			end --end if
 
 		end --end if
@@ -2472,23 +3025,26 @@ print( "   >>>  CHECK MODIFIED INDEX: struct :: base_id : " .. indexer_exp[1]  )
 
 
 
-		local exp_pos = exp.pos
+		local exp_copy = {}
+		for k, _ in pairs( exp ) do
+			exp_copy[ k ] = exp[ k ]
+		end --end for
+
 		for k, _ in pairs( exp ) do
 			exp[ k ] = nil
 		end --end for
 
+
 		exp.tag = "Call"
-		exp.pos = exp_pos
+		exp.pos = exp_copy.pos
 		exp[ 1 ] = ident_load
 		exp[ 2 ] = base_exp
-		exp[ 3 ] = tlast.exprNumber( exp_pos, offsetValue )
+		exp[ 3 ] = offset_exp
 
---		check_exp( env, exp[ 1 ] )
---		check_exp( env, exp[ 3 ] )
---print( "$$$$$$$$$$$$ HHHHH EEEE  RRR   EEEE   " .. t_member_translated[ 1 ] )
+
 		set_type( exp, t_member_translated )
 		set_ubound( exp, t_member_translated )
---print("CHECK MODIFIED INDEX, final type t : " .. tltype.tostring(t_member_translated) .. ", t.tag : " .. t_member_translated.tag)
+
 	end --end if
 
 
@@ -2497,8 +3053,6 @@ end --end check_Modified_Index
 
 function check_Modified_Assignment ( env, varList, expList, stm )
 
---	local varList = stm[ 1 ]
---	local expList = stm[ 2 ]
 
 	local lselfs = {}
 	for k, v in ipairs(varList) do
@@ -2517,138 +3071,532 @@ function check_Modified_Assignment ( env, varList, expList, stm )
 	end
 
 
+
 	local split_assignment = false
 	local modified_list = {}
 
 	for varList_k = #varList, 1, -1 do
 
-		local varList_v = varList[ varList_k ]
+		repeat
 
-		if varList_v.tag == "Index" then
+			local varList_v = varList[ varList_k ]
 
-			local var_exp = varList_v
+			if varList_v.tag == "Index" then
 
-			local base_exp = var_exp[ 1 ]
-			local indexer_exp = var_exp[ 2 ]
+				local var_exp = varList_v
 
-			local t_base = get_type( base_exp )
-			local t_indexer = get_type( indexer_exp )
+				local base_exp = var_exp[ 1 ]
+				local indexer_exp = var_exp[ 2 ]
 
-			if tltype.isPtr( t_base ) and t_base[ 1 ] == 1 and t_base[ 2 ].struct then
-
-				split_assignment = true
-				modified_list[ varList_k ] = true
-
-				local t = t_base[ 2 ]
-
-				local t_member
-				for _, v in ipairs( t ) do
-					if v[ 1 ][ 1 ] == t_indexer[ 1 ] then
-						t_member = v[ 2 ]
-					end --end if
-				end --end for
-
-				local ident_store
-				if tltype.isC_char( t_member ) then
-					ident_store = tlast.ident( var_exp.pos, "CS_storeChar" )	
-				elseif tltype.isC_int( t_member ) then
-					ident_store = tlast.ident( var_exp.pos, "CS_storeInt" )	
-				elseif tltype.isC_double( t_member ) then 
-					ident_store = tlast.ident( var_exp.pos, "CS_storeDouble" )	
-				elseif tltype.isPtr( t_member ) then
-					ident_store = tlast.ident( var_exp.pos, "CS_storePointer" )
-				elseif tltype.is_C_array( t_member ) then 
-					--ident_store = tlast.ident( var_exp.pos, "CS_storeDouble" )
-					check_exp( env, varList_v )
-					return 
-				end --end if
-
-
-				local var_exp_pos = var_exp.pos
-				for k, _ in pairs( var_exp ) do
-					var_exp[ k ] = nil
-				end --end for
-				for k, v in pairs( base_exp ) do
-					var_exp[ k ] = base_exp[ k ]
-				end --end for
+				local t_base = replace_names( env, get_type( base_exp ), var_exp.pos )
+				local t_indexer = replace_names( env, get_type( indexer_exp ), var_exp.pos )
 
 
 				local result_exp = expList[ varList_k ]
-				local result_exp_copy = {}
 
-				local result_exp_pos = result_exp.pos
-				for k, v in pairs( result_exp ) do
-					result_exp_copy[ k ] = result_exp[ k ]
-				end --end for
-				for k, _ in pairs( result_exp ) do
-					result_exp[ k ] = nil
-				end --end for
-
-				result_exp.tag = "Call"
-				result_exp.pos = result_exp_pos
-				result_exp[ 1 ] = ident_store
-				result_exp[ 2 ] = base_exp
-				result_exp[ 3 ] = tlast.exprNumber( result_exp_pos, t.structInfo.offsetTable[ t_indexer[ 1 ] ] )
-				result_exp[ 4 ] = result_exp_copy
-
-				check_exp( env, result_exp[ 1 ] )
-				check_exp( env, result_exp[ 3 ] )
-
---				check_exp( env, result_exp[ 4 ] )
-
-				set_type( result_exp, t_base )
-				set_ubound( result_exp, t_base )
+				local t_result = replace_names( env, get_type( result_exp ), var_exp.pos )
 
 
-			elseif tltype.is_C_array( t_base ) and tltype.isInt( t_indexer ) then
+				if tltype.isPtr( t_base ) then
 
-				split_assignment = true
-				modified_list[ varList_k ] = true
+					split_assignment = true
+					modified_list[ varList_k ] = true
 
-				local t = t_base
 
-				local t_member
---[[				for _, v in ipairs( t ) do
-					if v[ 1 ][ 1 ] == t_indexer[ 1 ] then
-						t_member = v[ 2 ]
+					if t_base[ 1 ] == 1 and tltype.is_C_void( t_base[ 2 ] ) then
+
+						local msg = "Problem @ checker: ( check_Modified_Assignment ) Cannot dereference \"ptr void\"."
+						handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+						break
+
 					end --end if
-				end --end for
-]]
-				if #t.offsetTable > 1 then
 
-					check_exp( env, varList_v )
-					check_exp( env, expList[ varList_k ] )
 
-				elseif #t.offsetTable == 1 then 
 
+					local t = t_base[ 2 ]
+
+					local t_member
+					local t_input_required
 					local ident_store
-					if tltype.isC_char( t[ 1 ] ) then
-						ident_store = tlast.ident( var_exp.pos, "CS_storeChar" )	
-					elseif tltype.isC_int( t[ 1 ] ) then
-						ident_store = tlast.ident( var_exp.pos, "CS_storeInt" )	
-					elseif tltype.isC_double( t[ 1 ] ) then 
-						ident_store = tlast.ident( var_exp.pos, "CS_storeDouble" )	
-					elseif tltype.isPtr( t[ 1 ] ) then
-						ident_store = tlast.ident( var_exp.pos, "CS_storePointer" )
+					local offset_exp
+
+
+					if is_subtype( t_indexer, tltype.Integer( true ), env, var_exp, true ) then
+
+						if t_base[ 1 ] > 1 then
+
+							ident_store = tlast.ident( var_exp.pos, "CS_storePointer" )
+
+
+							t_input_required = {}
+
+							for k, _ in pairs( t_base ) do
+								t_input_required[ k ] = t_base[ k ]
+							end --end for
+
+							t_input_required[ 1 ] = t_input_required[ 1 ] - 1
+
+							t_member = t_input_required
+
+
+							local unit_offset_exp = tlast.exprNumber( var_exp.pos, tltype.C_sizeTable[ "pointer" ] )
+							offset_exp = tlast.exprBinaryOp( unit_offset_exp, "mul", indexer_exp )
+
+						elseif t_base[ 1 ] == 1 then
+
+							t_member = t_base[ 2 ]
+
+							if tltype.is_C_BaseType( t_member ) then
+
+								if tltype.is_C_char( t_member ) then
+									ident_store = tlast.ident( var_exp.pos, "CS_storeChar" )	
+									t_input_required = tltype.String()
+								elseif tltype.is_C_int( t_member ) then
+									ident_store = tlast.ident( var_exp.pos, "CS_storeInt" )	
+									t_input_required = tltype.Integer( true )
+								elseif tltype.is_C_double( t_member ) then 
+									ident_store = tlast.ident( var_exp.pos, "CS_storeDouble" )	
+									t_input_required = tltype.Number()
+								elseif tltype.is_C_bool( t_member ) then 
+									ident_store = tlast.ident( var_exp.pos, "CS_storeBool" )	
+									t_input_required = tltype.Boolean()
+								end --end if
+
+								local unit_offset_exp = tlast.exprNumber( var_exp.pos, tltype.C_sizeTable[ t_member[ 1 ] ] )
+								offset_exp = tlast.exprBinaryOp( unit_offset_exp, "mul", indexer_exp )
+
+							elseif t_member.struct then
+
+								local msg = "Problem @ checker: ( check_Modified_Assignment ) Cannot index \"" .. tltype.tostring( t_base ) .. "\" with Base-Integer for assignment."
+								handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+								break
+
+							end --end if
+
+
+						end --end if
+
+
+					elseif tltype.isStr( t_indexer ) then
+
+
+						if ( not t_base[ 2 ].struct )  then
+
+							local msg = "Problem @ checker: ( check_Modified_Assignment ) Cannot index \"" .. tltype.tostring( t_base ) .. "\" with a Literal-String, since it is not a ptr to a struct."
+							handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+							break
+
+						end --end if
+
+
+
+						for _, v in ipairs( t ) do
+							if v[ 1 ][ 1 ] == t_indexer[ 1 ] then
+								t_member = v[ 2 ]
+							end --end if
+						end --end for
+
+
+						if ( not t_member )  then
+
+							local msg = "Problem @ checker: ( check_Modified_Assignment ) No such member. \"" .. tltype.tostring( t_base ) .. "\" has no member named \"" .. t_indexer[ 1 ] .. "\"."
+							handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+							break
+
+						end --end if
+
+
+
+						if tltype.is_C_char( t_member ) then
+							ident_store = tlast.ident( var_exp.pos, "CS_storeChar" )	
+							t_input_required = tltype.String()
+						elseif tltype.is_C_int( t_member ) then
+							ident_store = tlast.ident( var_exp.pos, "CS_storeInt" )	
+							t_input_required = tltype.Integer( true )
+						elseif tltype.is_C_double( t_member ) then 
+							ident_store = tlast.ident( var_exp.pos, "CS_storeDouble" )	
+							t_input_required = tltype.Number()
+						elseif tltype.is_C_bool( t_member ) then 
+							ident_store = tlast.ident( var_exp.pos, "CS_storeBool" )	
+							t_input_required = tltype.Boolean()
+						elseif tltype.isPtr( t_member ) then
+							ident_store = tlast.ident( var_exp.pos, "CS_storePointer" )
+							t_input_required = replace_names( env, t_member, var_exp.pos )
+						elseif tltype.is_C_array( t_member ) then 
+
+							local msg = "Problem @ checker: ( check_Modified_Assignment ) Cannot assign to a C_array. \"" .. tltype.tostring( t_base ) .. "\" has a member named \"" .. t_indexer[ 1 ] .. "\" of type \"" .. tltype.tostring( t_member ) .. "\"."
+							handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+							break
+
+						end --end if
+
+	
+						offset_exp = tlast.exprNumber( var_exp.pos, t.structInfo.offsetTable[ t_indexer[ 1 ] ] )
+
+
+
+					else
+
+						local msg = "Problem @ checker: ( check_Modified_Assignment ) Can only index \"" .. tltype.tostring( t_base ) .. "\" with a subtype of Base-Integer or with a Literal-Str."
+						handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+						break
+
+					end --end else
+
+
+
+
+
+					if tltype.isPtr( t_member ) and t_member[ 1 ] == 1 and tltype.is_C_char( t_member[ 2 ] ) and
+					   ( tltype.isString( t_result ) or tltype.isStr( t_result ) ) then
+
+
+						local load_base_exp = base_exp
+
+						local ident_load = tlast.ident( var_exp.pos, "CS_loadPointer" )
+
+
+
+						local load_member_exp = {}
+
+						load_member_exp.tag = "Call"
+						load_member_exp.pos = result_exp.pos
+						load_member_exp[ 1 ] = ident_load
+						load_member_exp[ 2 ] = load_base_exp
+						load_member_exp[ 3 ] = offset_exp
+
+
+
+						local store_base_exp = load_member_exp
+
+						ident_store = tlast.ident( var_exp.pos, "CS_storeString" )
+
+						offset_exp = tlast.exprNumber( var_exp.pos, 0 )
+
+
+
+						local result_exp_copy = {}
+
+						for k, v in pairs( result_exp ) do
+							result_exp_copy[ k ] = result_exp[ k ]
+						end --end for
+						for k, _ in pairs( result_exp ) do
+							result_exp[ k ] = nil
+						end --end for
+
+						result_exp.tag = "Call"
+						result_exp.pos = result_exp_copy.pos
+						result_exp[ 1 ] = ident_store
+						result_exp[ 2 ] = store_base_exp
+						result_exp[ 3 ] = offset_exp
+						result_exp[ 4 ] = result_exp_copy
+
+
+
+						set_type( result_exp, t_member )
+						set_ubound( result_exp, t_member )
+
+
+						break
+
 					end --end if
 
 
-					local ident_blank
-					ident_blank = tlast.ident( var_exp.pos, "_" )
 
-					local var_exp_pos = var_exp.pos
+
+					if ( not is_subtype( t_result, t_input_required, env, var_exp, true ) )  then
+
+						local msg = "Problem @ checker: ( check_Modified_Assignment ) Incorrect input type. REQUIRED: \"" .. tltype.tostring( t_input_required ) .. "\". RECEIVED: \"" .. tltype.tostring( t_result ) .. "\"."
+						handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+						break
+
+					end --end if
+
+
+
 					for k, _ in pairs( var_exp ) do
 						var_exp[ k ] = nil
 					end --end for
-					for k, v in pairs( ident_blank ) do
-						var_exp[ k ] = ident_blank[ k ]
+					for k, v in pairs( base_exp ) do
+						var_exp[ k ] = base_exp[ k ]
 					end --end for
 
 
-					local result_exp = expList[ varList_k ]
+
 					local result_exp_copy = {}
 
-					local result_exp_pos = result_exp.pos
+					for k, v in pairs( result_exp ) do
+						result_exp_copy[ k ] = result_exp[ k ]
+					end --end for
+					for k, _ in pairs( result_exp ) do
+						result_exp[ k ] = nil
+					end --end for
+
+					result_exp.tag = "Call"
+					result_exp.pos = result_exp_copy.pos
+					result_exp[ 1 ] = ident_store
+					result_exp[ 2 ] = base_exp
+					result_exp[ 3 ] = offset_exp
+					result_exp[ 4 ] = result_exp_copy
+
+
+
+					set_type( result_exp, t_base )
+					set_ubound( result_exp, t_base )
+
+
+				elseif tltype.is_C_array( t_base ) then
+
+					split_assignment = true
+					modified_list[ varList_k ] = true
+
+
+					if ( not is_subtype( t_indexer, tltype.Integer( true ), env, var_exp, true ) ) then
+
+						local msg = "Problem @ checker: ( check_Modified_Assignment ) Can only index \"" .. tltype.tostring( t_base ) .. "\" with a subtype of Base-Integer."
+						handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+						break
+
+					end --end if
+
+
+
+					local t = t_base
+
+					local t_member = t[ 2 ]
+					local t_input_required
+					local ident_store
+					local offset_exp
+
+
+					local unit_offset_exp = tlast.exprNumber( var_exp.pos, t.offsetTable[ 1 ] )
+					offset_exp = tlast.exprBinaryOp( unit_offset_exp, "mul", indexer_exp )
+
+
+
+					if #t.offsetTable > 1 then
+
+						local msg = "Problem @ checker: ( check_Modified_Assignment ) Cannot assign to a C_array. Indexing into \"" .. tltype.tostring( t_base ) .. "\" results in a C_array."
+						handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+						break
+
+					elseif #t.offsetTable == 1 then 
+
+						if tltype.is_C_char( t[ 2 ] ) then
+							ident_store = tlast.ident( var_exp.pos, "CS_storeChar" )	
+							t_input_required = tltype.String()
+						elseif tltype.is_C_int( t[ 2 ] ) then
+							ident_store = tlast.ident( var_exp.pos, "CS_storeInt" )	
+							t_input_required = tltype.Integer( true )
+						elseif tltype.is_C_double( t[ 2 ] ) then 
+							ident_store = tlast.ident( var_exp.pos, "CS_storeDouble" )	
+							t_input_required = tltype.Number()
+						elseif tltype.is_C_bool( t[ 2 ] ) then 
+							ident_store = tlast.ident( var_exp.pos, "CS_storeBool" )	
+							t_input_required = tltype.Boolean()
+						elseif tltype.isPtr( t[ 2 ] ) then
+							ident_store = tlast.ident( var_exp.pos, "CS_storePointer" )
+							t_input_required = replace_names( env, t[ 2 ], var_exp.pos )
+						end --end if
+
+
+
+
+
+						if tltype.isPtr( t_member ) and t_member[ 1 ] == 1 and tltype.is_C_char( t_member[ 2 ] ) and
+						   ( tltype.isString( t_result ) or tltype.isStr( t_result ) ) then
+
+
+							local load_base_exp = base_exp
+
+							local ident_load = tlast.ident( var_exp.pos, "CS_loadPointer" )
+
+
+
+							local load_member_exp = {}
+
+							load_member_exp.tag = "Call"
+							load_member_exp.pos = result_exp.pos
+							load_member_exp[ 1 ] = ident_load
+							load_member_exp[ 2 ] = load_base_exp
+							load_member_exp[ 3 ] = offset_exp
+
+
+
+							local store_base_exp = load_member_exp
+
+							ident_store = tlast.ident( var_exp.pos, "CS_storeString" )
+
+							offset_exp = tlast.exprNumber( var_exp.pos, 0 )
+
+
+
+							local result_exp_copy = {}
+
+							for k, v in pairs( result_exp ) do
+								result_exp_copy[ k ] = result_exp[ k ]
+							end --end for
+							for k, _ in pairs( result_exp ) do
+								result_exp[ k ] = nil
+							end --end for
+
+							result_exp.tag = "Call"
+							result_exp.pos = result_exp_copy.pos
+							result_exp[ 1 ] = ident_store
+							result_exp[ 2 ] = store_base_exp
+							result_exp[ 3 ] = offset_exp
+							result_exp[ 4 ] = result_exp_copy
+
+
+
+							set_type( result_exp, t_member )
+							set_ubound( result_exp, t_member )
+
+
+							break
+
+						end --end if
+
+
+
+
+
+						if ( not is_subtype( t_result, t_input_required, env, var_exp, true ) )  then
+
+							local msg = "Problem @ checker: ( check_Modified_Assignment ) Incorrect input type. REQUIRED: \"" .. tltype.tostring( t_input_required ) .. "\". RECEIVED: \"" .. tltype.tostring( t_result ) .. "\"."
+							handle_error_message( env, "check_Modified_Assignment", var_exp, msg )
+							break
+
+						end --end if
+
+
+
+						local ident_blank
+						ident_blank = tlast.ident( var_exp.pos, "_" )
+
+
+						for k, _ in pairs( var_exp ) do
+							var_exp[ k ] = nil
+						end --end for
+						for k, v in pairs( ident_blank ) do
+							var_exp[ k ] = ident_blank[ k ]
+						end --end for
+
+
+						local result_exp_copy = {}
+
+						for k, v in pairs( result_exp ) do
+							result_exp_copy[ k ] = result_exp[ k ]
+						end --end for
+						for k, _ in pairs( result_exp ) do
+							result_exp[ k ] = nil
+						end --end for
+
+
+
+
+						result_exp.tag = "Call"
+						result_exp.pos = result_exp_copy.pos
+						result_exp[ 1 ] = ident_store
+						result_exp[ 2 ] = base_exp
+						result_exp[ 3 ] = offset_exp
+						result_exp[ 4 ] = result_exp_copy
+
+
+
+						set_type( result_exp, t_base )
+						set_ubound( result_exp, t_base )
+
+
+						set_type( var_exp, t_base )
+						set_ubound( var_exp, t_base )
+
+					end --end if
+
+
+				end --end if
+
+
+			end --end if
+
+		until ( true )
+
+
+
+		repeat
+
+			if ( not modified_list[ varList_k ] ) then
+
+				local var_exp = varList[ varList_k ]
+
+				local t_var_expected = nil
+
+
+
+				local result_exp = expList[ varList_k ]
+
+				local t_result = replace_names( env, get_type( result_exp ), var_exp.pos )
+
+
+				if var_exp.tag == "Id" then
+
+					local name = var_exp[1]
+					local l, floc, lloc = tlst.get_local(env, name)
+					local t = get_type(l)
+
+
+					t_var_expected = t
+
+				elseif var_exp.tag == "Index" then
+
+					local exp1, exp2 = var_exp[1], var_exp[2]
+					local t1, t2 = tltype.first(get_type(exp1)), tltype.first(get_type(exp2))
+--					local msg = "attempt to index " .. bold_token .. " with " .. bold_token
+					t1 = replace_self(env, t1, env.self)
+					if tltype.isTable(t1) then
+					  local oself = env.self
+					  -- another brittle hack for defining methods
+--					  if exp1.tag == "Id" and exp1[1] ~= "_ENV" then env.self = t1 end
+					  local field_type = tltype.getField(t2, t1)
+					  if not tltype.isNil(field_type) then
+--					    set_type(var, field_type)
+
+					    t_var_expected = field_type
+
+					  else
+
+					    t_var_expected = nil
+
+					  end --end else
+
+					else
+
+					  break
+
+					end --end else
+
+				else
+
+					break
+
+				end --end else
+
+
+
+
+				if ( not t_var_expected ) then
+
+					break
+
+				end --end if
+
+
+				if tltype.isString( t_var_expected ) and
+				   tltype.isPtr( t_result ) and t_result[ 1 ] == 1 and tltype.is_C_char( t_result[ 2 ] ) then
+
+
+					local result_exp_copy = {}
+
 					for k, v in pairs( result_exp ) do
 						result_exp_copy[ k ] = result_exp[ k ]
 					end --end for
@@ -2657,34 +3605,79 @@ function check_Modified_Assignment ( env, varList, expList, stm )
 					end --end for
 
 
-					local offsetValue = t.offsetTable[ 1 ] * t_indexer[ 1 ]
+					local load_base_exp = result_exp_copy
+
+					local ident_load = tlast.ident( var_exp.pos, "CS_loadString" )
+
+					local offset_exp = tlast.exprNumber( var_exp.pos, 0 )
+
 
 					result_exp.tag = "Call"
-					result_exp.pos = result_exp_pos
+					result_exp.pos = result_exp_copy.pos
+					result_exp[ 1 ] = ident_load
+					result_exp[ 2 ] = load_base_exp
+					result_exp[ 3 ] = offset_exp
+
+
+
+					set_type( result_exp, t_var_expected )
+					set_ubound( result_exp, t_var_expected )
+
+
+
+					split_assignment = true
+
+
+
+				elseif tltype.isPtr( t_var_expected ) and t_var_expected[ 1 ] == 1 and tltype.is_C_char( t_var_expected[ 2 ] ) and
+				       ( tltype.isString( t_result ) or tltype.isStr( t_result ) ) then
+
+
+					local store_base_exp = var_exp
+
+					local ident_store = tlast.ident( var_exp.pos, "CS_storeString" )
+
+					local offset_exp = tlast.exprNumber( var_exp.pos, 0 )
+
+
+
+					local result_exp_copy = {}
+
+					for k, v in pairs( result_exp ) do
+						result_exp_copy[ k ] = result_exp[ k ]
+					end --end for
+					for k, _ in pairs( result_exp ) do
+						result_exp[ k ] = nil
+					end --end for
+
+					result_exp.tag = "Call"
+					result_exp.pos = result_exp_copy.pos
 					result_exp[ 1 ] = ident_store
-					result_exp[ 2 ] = base_exp
-					result_exp[ 3 ] = tlast.exprNumber( result_exp_pos, offsetValue )
+					result_exp[ 2 ] = store_base_exp
+					result_exp[ 3 ] = offset_exp
 					result_exp[ 4 ] = result_exp_copy
 
-					check_exp( env, result_exp[ 1 ] )
-					check_exp( env, result_exp[ 3 ] )
-
---					check_exp( env, result_exp[ 4 ] )
-
-					set_type( result_exp, t_base )
-					set_ubound( result_exp, t_base )
 
 
-					set_type( var_exp, t_base )
-					set_ubound( var_exp, t_base )
+					set_type( result_exp, t_var_expected )
+					set_ubound( result_exp, t_var_expected )
 
-				end --end if
 
+
+					split_assignment = true
+					modified_list[ varList_k ] = true
+
+
+				else
+
+					break
+
+				end --end else
 
 			end --end if
 
+		until ( true )
 
-		end --end if
 
 	end --end for
 
@@ -2699,10 +3692,26 @@ function check_Modified_Assignment ( env, varList, expList, stm )
 
 				stm_list[ varList_k ] = expList[ varList_k ]
 
-			elseif true then
+			else
 
 				local var_list = { tag = "Varlist", pos = stm.pos, [ 1 ] = varList[ varList_k ] }
-				local exp_list = tlast.explist( stm.pos, expList[ varList_k ] )
+
+				local exp_list
+
+				if expList[ varList_k ] then
+
+					exp_list = tlast.explist( stm.pos, expList[ varList_k ] )
+
+				else
+
+					local nil_exp = tlast.exprNil( stm.pos )
+
+					check_exp( env, nil_exp )
+
+					exp_list = tlast.explist( stm.pos, nil_exp )
+
+				end --end else
+
 
 				local stm_set = { tag = "Set", pos = stm.pos, [ 1 ] = var_list, [ 2 ] = exp_list }
 
@@ -2715,13 +3724,21 @@ function check_Modified_Assignment ( env, varList, expList, stm )
 
 		for k, v in ipairs( stm_list ) do
 
-			if (not modified_list[ k ]) then
+			if ( not modified_list[ k ] ) then
 
 				check_assignment( env, stm_list[ k ][ 1 ], stm_list[ k ][ 2 ], true )
 
 			end --end if
 
 		end --end for
+
+
+		for expList_k = #varList + 1, #expList, 1 do
+
+			stm_list[ expList_k ] = expList[ expList_k ]
+
+		end --end for
+
 
 		local stm_do = tlast.statDo( tlast.block( stm.pos, table.unpack( stm_list ) ) )
 
@@ -2732,11 +3749,18 @@ function check_Modified_Assignment ( env, varList, expList, stm )
 			stm[ k ] = stm_do[ k ]
 		end --end for
 
-	elseif (not split_assignment) then
+
+		return false
+
+
+	elseif ( not split_assignment ) then
 
 		return check_assignment( env, stm[ 1 ], stm[ 2 ], true )
 
 	end --end if
+
+
+	return false
 
 
 end --end check_Modified_Assignment
@@ -2772,7 +3796,7 @@ function check_exp (env, exp, tself)
 
 --[[ @POSEIDON_LUA: BEGIN ]]
 
-print( "       * * *    CALL exp[1].tag : " .. exp[1].tag )
+
 	local found, status = check_Modified_Call( env, exp )
 
 	if (not found) then
@@ -2860,7 +3884,29 @@ function check_stm (env, stm)
     tlst.push_break_snapshot(env)
     return false
   elseif tag == "Call" then
+
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+
+	local found, status = check_Modified_Call( env, stm )
+
+	if (not found) then
+	
+--[[ @POSEIDON_LUA: END ]]
+
+
+
     check_call(env, stm)
+
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+	end --end if
+
+--[[ @POSEIDON_LUA: END ]]
+
+
     if tltype.isVoid(get_type(stm)) then
       return true
     else

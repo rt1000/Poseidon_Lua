@@ -221,7 +221,7 @@ function tlast.statStruct (pos, name, t)
 	t.structInfo = {}
 	t.structInfo.offsetTable = {}
 	t.structInfo.size = 0
-	local sizeTable = { [ "char" ] = 1, [ "int" ] = 4, [ "double" ] = 8 }
+
 
 	for _, v in ipairs(t) do
 		local field_keyType = v[ 1 ]
@@ -229,18 +229,18 @@ function tlast.statStruct (pos, name, t)
 		local keyString = field_keyType[ 1 ]
 
 		local valueSize
-		if tltype.isC_BaseType( field_valueType ) then
+		if tltype.is_C_BaseType( field_valueType ) then
 			valueSize = tltype.C_sizeTable[ field_valueType[ 1 ] ]
 		elseif tltype.isPtr( field_valueType ) then
 			valueSize = tltype.C_sizeTable[ "pointer" ]
 		elseif tltype.is_C_array( field_valueType ) then
-			local arraySizeTable = field_valueType[ 2 ]
+			local arraySizeTable = field_valueType[ 1 ]
 			local arrayOffsetTable = {}
 
 			local typeNodeSize
-			if tltype.isC_BaseType( field_valueType[ 1 ] ) then
-				typeNodeSize = tltype.C_sizeTable[ field_valueType[ 1 ][ 1 ] ]
-			elseif tltype.isPtr( field_valueType[ 1 ] ) then
+			if tltype.is_C_BaseType( field_valueType[ 2 ] ) then
+				typeNodeSize = tltype.C_sizeTable[ field_valueType[ 2 ][ 1 ] ]
+			elseif tltype.isPtr( field_valueType[ 2 ] ) then
 				typeNodeSize = tltype.C_sizeTable[ "pointer" ]
 			end --end if
 
@@ -252,8 +252,7 @@ function tlast.statStruct (pos, name, t)
 			end --end for
 
 			field_valueType.offsetTable = arrayOffsetTable
---valueSize = 1 
---print( "  ^^^^^^^^^^^^ STAT STRUCT" .. tostring( arraySizeTable[ 1 ][1] ) )
+
 			valueSize = arraySizeTable[ 1 ] * arrayOffsetTable[ 1 ]
 		end --end if
 
@@ -266,15 +265,15 @@ function tlast.statStruct (pos, name, t)
 end --end tlast.statStruct
 
 
--- exprMalloc : (number, ptrType, numberNode) -> (expr)
-function tlast.exprMalloc (pos, ptrTypeNode, mallocSizeNode)
+-- exprMalloc : (number, type, expr) -> (expr)
+function tlast.exprMalloc (pos, typeNode, mallocSizeNode)
 
 	local ident_malloc = tlast.ident( pos, "malloc" )
 
-	if ptrTypeNode and mallocSizeNode then
-		return { tag = "Call", pos = pos, [1] = ident_malloc, [2] = ptrTypeNode, [3] = mallocSizeNode }
-	elseif ptrTypeNode then
-		return { tag = "Call", pos = pos, [1] = ident_malloc, [2] = ptrTypeNode }
+	if typeNode and mallocSizeNode then
+		return { tag = "Call", pos = pos, [1] = ident_malloc, [2] = typeNode, [3] = mallocSizeNode }
+	elseif typeNode then
+		return { tag = "Call", pos = pos, [1] = ident_malloc, [2] = typeNode }
 	elseif mallocSizeNode then
 		return { tag = "Call", pos = pos, [1] = ident_malloc, [2] = mallocSizeNode }
 	end --end if
@@ -282,6 +281,25 @@ function tlast.exprMalloc (pos, ptrTypeNode, mallocSizeNode)
 	return { tag = "Call", pos = pos, [1] = ident_malloc }
 
 end --end tlast.exprMalloc
+
+
+-- exprSizeof : (number, type) -> (expr)
+function tlast.exprSizeof (pos, typeNode)
+
+	local ident_sizeof = tlast.ident( pos, "sizeof" )
+
+
+	if typeNode then
+		return { tag = "Call", pos = pos, [1] = ident_sizeof, [2] = typeNode }
+	end --end if
+
+	return { tag = "Call", pos = pos, [1] = ident_sizeof }
+
+end --end tlast.exprSizeof
+
+
+
+
 
 --[[ @POSEIDON_LUA: END ]]
 

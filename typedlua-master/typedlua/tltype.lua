@@ -14,14 +14,15 @@ tltype.integer = false
 tltype.C_sizeTable = { char = 1,
 		       int = 4,
 		       double = 8,
-		       pointer = 4
+		       bool = 4,
+		       pointer = 8
 		     }
 
 -- C_BaseType
 
--- C_BaseType : ("int"|"double") -> (type)
+-- C_BaseType : ("char"|"int"|"double"|"bool") -> (type)
 function tltype.C_BaseType (s)
-  return { tag = "TC_BaseType", [1] = s }
+  return { tag = "T_C_BaseType", [1] = s }
 end
 
 
@@ -37,45 +38,66 @@ end
 function tltype.C_double ()
   return tltype.C_BaseType("double")
 end
-
-
--- isC_BaseType : (type) -> (boolean)
-function tltype.isC_BaseType (t)
-  return t.tag == "TC_BaseType"
-end
--- isC_char : (type) -> (boolean)
-function tltype.isC_char (t)
-  return tltype.isC_BaseType(t) and t[1] == "char"
-end
--- isC_int : (type) -> (boolean)
-function tltype.isC_int (t)
-  return tltype.isC_BaseType(t) and t[1] == "int"
-end
--- isC_double : (type) -> (boolean)
-function tltype.isC_double (t)
-  return tltype.isC_BaseType(t) and t[1] == "double"
+-- C_bool : () -> (type)
+function tltype.C_bool ()
+  return tltype.C_BaseType("bool")
 end
 
 
--- Ptr : (boolean*, variableType) -> (type)
+-- is_C_BaseType : (type) -> (boolean)
+function tltype.is_C_BaseType (t)
+  return t.tag == "T_C_BaseType"
+end
+-- is_C_char : (type) -> (boolean)
+function tltype.is_C_char (t)
+  return tltype.is_C_BaseType(t) and t[1] == "char"
+end
+-- is_C_int : (type) -> (boolean)
+function tltype.is_C_int (t)
+  return tltype.is_C_BaseType(t) and t[1] == "int"
+end
+-- is_C_double : (type) -> (boolean)
+function tltype.is_C_double (t)
+  return tltype.is_C_BaseType(t) and t[1] == "double"
+end
+-- is_C_bool : (type) -> (boolean)
+function tltype.is_C_bool (t)
+  return tltype.is_C_BaseType(t) and t[1] == "bool"
+end
+
+
+-- C_void
+
+-- C_void : () -> (type)
+function tltype.C_void ()
+  return { tag = "T_C_void" }
+end
+
+-- is_C_void : (type) -> (boolean)
+function tltype.is_C_void (t)
+  return t.tag == "T_C_void"
+end
+
+
+
+-- Ptr : (boolean*, type) -> (type)
 function tltype.Ptr ( ... )
 
   local argsTable = { ... }
-  local variableTypeNode = argsTable[ #argsTable ]
+
+
+  local typeNode = argsTable[ #argsTable ]
 
   argsTable[ #argsTable ] = nil
 
+
   local pointerDepth = 0
+
   for k, v in ipairs( argsTable ) do
     pointerDepth = pointerDepth + 1
   end --end for
 
---[[
-  if pointerDepth == 0 then
-    return variableTypeNode
-  end --end if
-]]
-  return { tag = "TPtr", [1] = pointerDepth, [2] = variableTypeNode }
+  return { tag = "TPtr", [1] = pointerDepth, [2] = typeNode }
 
 end
 -- isPtr : (type) -> (boolean)
@@ -84,20 +106,24 @@ function tltype.isPtr (t)
 end
 
 
--- C_array : (type, number*) -> (type)
+-- C_array : (number*, type) -> (type)
 function tltype.C_array ( ... )
 
   local argsTable = { ... }
 
-  local typeNode = argsTable[ 1 ]
-  table.remove( argsTable, 1 )
 
+  local typeNode = argsTable[ #argsTable ]
+
+  argsTable[ #argsTable ] = nil
+
+
+  local arraySizeTable = {}
 
   for k, v in pairs( argsTable ) do
-    argsTable[ k ] = v[ 1 ]
+    arraySizeTable[ k ] = v[ 1 ]
   end --end for
 
-  return { tag = "T_C_array", [1] = typeNode, [2] = argsTable }
+  return { tag = "T_C_array", [1] = arraySizeTable, [2] = typeNode }
 
 end
 -- is_C_array : (type) -> (boolean)
@@ -1052,62 +1078,220 @@ local function subtype_tuple (env, t1, t2, relation)
   end
 end
 
+
+
+
+--[[ @POSEIDON_LUA: BEGIN ]]
+
+
+local subtype_C
+
+local function subtype_C_struct (env, t1, t2, relation)
+
+	if t2.struct and
+	   t1.struct then
+
+		return t2.struct == t1.struct
+
+	end --end if
+
+
+end --end subtype_C_struct
+
+
+local function subtype_C_ptr (env, t1, t2, relation)
+
+	if tltype.isPtr( t2 ) and
+	   tltype.isPtr( t1 ) then
+
+		if ( tltype.isPtr( t2 ) and t2[ 1 ] == 1 and tltype.is_C_void( t2[ 2 ] ) ) or
+		   ( tltype.isPtr( t1 ) and t1[ 1 ] == 1 and tltype.is_C_void( t1[ 2 ] ) ) then
+
+			return true
+
+		elseif t2[ 1 ] == t1[ 1 ] then
+
+			local t2_ptr_base = t2[ 2 ]
+			local t1_ptr_base = t1[ 2 ]
+
+			if tltype.is_C_void( t2_ptr_base ) and
+			   tltype.is_C_void( t1_ptr_base ) then
+
+				return true
+
+			elseif tltype.is_C_BaseType( t2_ptr_base ) and
+			       tltype.is_C_BaseType( t1_ptr_base ) then
+
+				return t2_ptr_base[ 1 ] == t1_ptr_base[ 1 ]
+
+			elseif t2_ptr_base.struct and
+			       t1_ptr_base.struct then
+
+				return t2_ptr_base.struct == t1_ptr_base.struct
+
+			else
+
+				return false
+
+			end --end else
+
+		else
+
+			return false
+
+		end --end else
+
+	else
+
+		return false
+
+	end --end else
+
+
+end --end subtype_C_ptr
+
+
+local function subtype_C_array (env, t1, t2, relation)
+
+
+	if tltype.isPtr( t2 ) and 
+	   tltype.is_C_array( t1 ) then
+
+
+		local t_array_base = t1[ 2 ]
+
+		local t_converted
+
+
+		if tltype.is_C_BaseType( t_array_base ) then
+
+			t_converted = tltype.Ptr( true, t_array_base )
+
+		elseif tltype.isPtr( t_array_base ) then
+
+			t_converted = {}
+
+			for k, v in pairs( t_array_base ) do
+
+				t_converted[ k ] = t_array_base[ k ]
+
+			end --end for
+
+
+			t_converted[ 1 ] = t_converted[ 1 ] + 1
+
+		else
+
+			return false
+
+		end --end else
+
+
+		return subtype_C( env, t_converted, t2, relation )
+
+	else
+
+		return false
+
+	end --end else
+
+
+end --end subtype_C_array
+
+
+function subtype_C (env, t1, t2, relation)
+
+	if subtype_C_struct( env, t1, t2, relation ) or
+	   subtype_C_ptr( env, t1, t2, relation ) or
+	   subtype_C_array( env, t1, t2, relation ) then
+
+		return true
+
+	else
+
+		return false
+
+	end --end else
+
+
+end --end subtype_C
+
+
+
+local function is_C_type (env, t_input, relation)
+
+
+	if tltype.is_C_void( t_input ) then
+
+		return true
+
+	elseif tltype.is_C_BaseType( t_input ) then
+
+		return true
+
+	elseif tltype.isPtr( t_input ) then
+
+		return true
+
+	elseif tltype.is_C_array( t_input ) then
+
+		return true
+
+	elseif t_input.struct then
+
+		return true
+
+	else
+
+		return false
+
+	end --end else
+
+
+end --end is_C_type
+
+
+
+--[[ @POSEIDON_LUA: END ]]
+
+
+
 function subtype (env, t1, t2, relation)
 
 --[[ @POSEIDON_LUA: BEGIN ]]
 
-	if tltype.isTable( t1 ) and tltype.isTable( t2 ) then
-		if t1.struct and (not t2.struct) then
+
+	local t2_is_C_type = is_C_type( env, t2, relation )
+	local t1_is_C_type = is_C_type( env, t1, relation )
+
+	if t2_is_C_type and
+	   t1_is_C_type then
+
+		return subtype_C( env, t1, t2, relation )
+
+
+	elseif t2_is_C_type or
+	       t1_is_C_type then
+
+
+		if ( t2_is_C_type and tltype.isAny( t1 ) ) or
+		   ( t1_is_C_type and tltype.isAny( t2 ) ) then
+
+			return subtype_any(env, t1, t2, relation)
+
+
+		elseif ( t2_is_C_type and ( not tltype.isPtr( t2 ) ) ) or
+		       ( t1_is_C_type and ( not tltype.isPtr( t1 ) ) ) then
+
 			return false
-		end --end if
-		if (not t1.struct) and t2.struct then
-			return false
-		end --end if
-	end --end if
 
-	if t1.struct and t2.struct then
-print( "SUBTYPE STRUCT  t1 : " .. tltype.tostring(t1) .. ", t2 : " .. tltype.tostring(t2) )
-print( "t1.struct : " .. t1.struct .. ", t2.struct : " .. t2.struct ) 
-print(" ==? " .. tostring(t1.struct == t2.struct) )
-		return t1.struct == t2.struct
+
+		end --end if
+
 
 	end --end if
 
-	if tltype.isPtr( t1 ) and tltype.isPtr( t2 ) and ( tltype.isVoid( t1[ 2 ] ) or tltype.isVoid( t2[ 2 ] ) ) then
-		if tltype.isVoid( t2[ 2 ] ) then
-			return t2[ 1 ] == t1[ 1 ]
-		end --end if
-		if tltype.isVoid( t1[ 2 ] ) then
-			return false
-		end --end if
-	end --end if
 
-	if tltype.isPtr( t1 ) and tltype.isPtr( t2 ) then
-		return t1[ 1 ] == t2[ 1 ] and t1[ 2 ].struct and t2[ 2 ].struct and t1[ 2 ].struct == t2[ 2 ].struct
-	end --end if
-
-
-	if tltype.is_C_array( t1 ) and tltype.is_C_array( t2 ) then
-
-		if (not #t1[ 2 ] == #t2[ 2 ]) or (not #t1.offsetTable == #t2.offsetTable) then
-			return false
-		end --end if
-
-		for k, v in ipairs( t1 ) do
-			if (not t1[ k ] == t2[ k ]) then
-				return false
-			end --end if
-		end --end for
-
-		for k, v in ipairs( t1.offsetTable ) do
-			if (not t1.offsetTable[ k ] == t2.offsetTable[ k ]) then
-				return false
-			end --end if
-		end --end for
-
-		return subtype( env, t1[ 1 ], t2[ 1 ], relation )
-
-	end --end if
 
 --[[ @POSEIDON_LUA: END ]]
 
@@ -1332,20 +1516,38 @@ local function type2str (t, n)
 
 --[[ @POSEIDON_LUA: BEGIN ]]
 
-  elseif tltype.isC_BaseType(t) then
+  elseif tltype.is_C_BaseType( t ) then
+
     return t[1]
+
+  elseif tltype.is_C_void( t ) then
+
+    local voidString = "void"
+
+    return voidString
+
   elseif tltype.isPtr( t ) then
+
     local ptrString = ""
+
     for i = 1, t[ 1 ], 1 do
       ptrString = ptrString .. "ptr "
     end --end for 
+
     ptrString = ptrString .. tltype.tostring( t[ 2 ] )
+
     return ptrString
+
   elseif tltype.is_C_array( t ) then
-    local arrayString = type2str( t[ 1 ] )
-    for k, v in pairs( t[ 2 ] ) do
-      arrayString = arrayString .. "[" .. tostring( v ) .. "]"
-    end --end for
+
+    local arrayString = ""
+
+    for i = 1, #t[ 1 ], 1 do
+      arrayString = arrayString .. "[ " .. tostring( t[ 1 ][ i ] ) .. " ]"
+    end --end for 
+
+    arrayString = arrayString .. " " .. tltype.tostring( t[ 2 ] )
+
     return arrayString
 
 --[[ @POSEIDON_LUA: END ]]

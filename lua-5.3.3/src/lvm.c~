@@ -1286,42 +1286,6 @@ void luaV_execute (lua_State *L) {
       }//end OP_CS_STORE_STRING
 
 
-      //CASE: OP_CS_LOAD_CHECKED_NULL
-      vmcase( OP_CS_LOAD_CHECKED_NULL ) {
-
-	//ACCESS: mallocedStruct
-	char *mallocedStruct = (char *) (pvalue(ra)) ;
-
-	//SET: result
-	if ( mallocedStruct == NULL ) {
-
-		setnilvalue( ra ) ;
-
-	}//end if
-
-
-        vmbreak;
-      }//end OP_CS_LOAD_CHECKED_NULL
-
-
-      //CASE: OP_CS_STORE_NULL
-      vmcase( OP_CS_STORE_NULL ) {
-
-	//ACCESS: mallocedStruct
-	char *mallocedStruct = (char *) (pvalue(ra)) ;
-
-	//ACCESS: memberOffset
-	int memberOffset = (int) (ivalue(ra + 1)) ;
-
-
-	//SET: memberPtr
-	char **memberPtr = (char **) (mallocedStruct + memberOffset) ;
-	*memberPtr = NULL ;
-
-
-        vmbreak;
-      }//end OP_CS_STORE_NULL
-
 //@POSEIDON_LUA: END
 //============================================================================================
 

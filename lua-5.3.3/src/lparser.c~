@@ -1082,32 +1082,6 @@ static int parse_CS_expr ( LexState *ls, expdesc *v ) {
 		return 1 ;
 
 	}//end if
-	else if ( strcmp( getstr( nameTString ), "CS_loadCheckedNull" ) == 0 ) {
-
-		luaX_next( ls ) ;
-
-		funcargs(ls, f, line) ;
-
-		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_LOAD_STRING, oldFreeReg, 2, 2));
-		luaK_fixline(fs, line);
-		fs->freereg = oldFreeReg + 1 ; 
-
-		return 1 ;
-
-	}//end if
-	else if ( strcmp( getstr( nameTString ), "CS_storeNull" ) == 0 ) {
-
-		luaX_next( ls ) ;
-
-		funcargs(ls, f, line) ;
-
-		init_exp(v, VCALL, luaK_codeABC(fs, OP_CS_STORE_NULL, oldFreeReg, 2, 2));
-		luaK_fixline(fs, line);
-		fs->freereg = oldFreeReg + 1 ; 
-
-		return 1 ;
-
-	}//end if
 
 
 	return 0 ;
@@ -1789,7 +1763,18 @@ static void retstat (LexState *ls) {
     nret = explist(ls, &e);  /* optional return values */
     if (hasmultret(e.k)) {
       luaK_setmultret(fs, &e);
-      if (e.k == VCALL && nret == 1) {  /* tail call? */
+      if (e.k == VCALL && nret == 1
+
+//@POSEIDON_LUA: BEGIN
+//============================================================================================
+
+             && ( is_CS_opcode( GET_OPCODE(getinstruction(fs,&e)) ) != 1 )
+
+//@POSEIDON_LUA: END
+//============================================================================================
+
+
+) {  /* tail call? */
         SET_OPCODE(getinstruction(fs,&e), OP_TAILCALL);
         lua_assert(GETARG_A(getinstruction(fs,&e)) == fs->nactvar);
       }

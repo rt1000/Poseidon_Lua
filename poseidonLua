@@ -1,0 +1,600 @@
+#!/bin/bash
+
+
+
+
+dir_to_pwd="$( pwd )"
+dir_to_project_relative="$( dirname $0 )"
+dir_to_project="$( cd $dir_to_project_relative && pwd )"
+
+dir_to_lua_make="${dir_to_project}/lua-5.3.3"
+dir_to_tlc="${dir_to_project}/typedlua-master"
+
+
+path_to_lua="${dir_to_project}/lua-5.3.3/src/lua"
+path_to_tlc="${dir_to_project}/typedlua-master/tlc"
+
+
+
+if [[ "$#" -eq "0" ]] ; then
+
+	echo "Error: Missing command."
+	exit
+
+fi
+
+
+if [[ "$1" == "build" ]] ; then
+
+	cd "$dir_to_lua_make" && make linux
+
+	exit
+
+
+elif [[ "$1" == "clean" ]] ; then
+
+
+	if [[ "0" -eq "1" ]] ; then
+
+
+		required_num_args=1
+		num_args=$(( $# - 1 ))
+
+		if [[ "$num_args" -lt "$required_num_args" ]] ; then
+
+			cd "$dir_to_lua_make" && make clean
+			exit
+
+		fi
+
+
+		if [[ "$2" == "e1" ]] ; then
+
+			dir_to_driver="${dir_to_project}/Benchmarks/b1"
+
+
+			cd "$dir_to_driver" && "$path_to_lua" BenchmarkDriver.lua "$path_to_lua"
+
+			exit
+
+		elif [[ "$2" == "b1" ]] ; then
+
+#			dir_to_driver="${dir_to_project}/Benchmarks/b1"
+
+
+#			cd "$dir_to_driver" && "$path_to_lua" BenchmarkDriver.lua "$path_to_lua"
+
+			exit
+
+		fi
+
+
+	fi
+
+
+
+
+	# PROCESS: Benchmark name.
+	dir_to_driver=""
+	component_cs_lua=""
+
+
+	if [[ "$2" == "b1" ]] ; then
+
+
+		dir_to_driver="${dir_to_project}/Benchmarks/b1"
+		component_cs_lua="BinaryTrees2_cs.lua"
+
+	else
+
+		echo "[ Error: $1 ]: Unknown benchmark \"${2}\"."
+		exit
+
+	fi
+
+
+	cd "$dir_to_driver" && rm "$component_cs_lua"
+
+	cd "$dir_to_driver" && rm "Benchmark_results_lua.csv"
+	cd "$dir_to_driver" && rm "Benchmark_results_cs.csv"
+	cd "$dir_to_driver" && rm "Benchmark_results_luaffi.csv"
+
+	cd "$dir_to_driver" && rm "output_lua.txt"
+	cd "$dir_to_driver" && rm "output_cs.txt"
+	cd "$dir_to_driver" && rm "output_luaffi.txt"
+
+
+
+	exit
+
+elif [[ "$1" == "lua" ]] ; then
+
+	required_num_args=1
+	num_args=$(( $# - 1 ))
+
+	if [[ "$num_args" -lt "$required_num_args" ]] ; then
+
+		echo "Error: Missing arguments. Required: ${required_num_args}. Received: ${num_args}."
+		exit
+
+	fi
+
+
+
+	# PROCESS: Options.
+	output_opts=""
+	output_opt_args=""
+
+	num_opt_args="1"
+
+
+	curr_input_opt_pos=3
+	remaining_num_args=$(( $# - 2 ))
+
+
+	while [[ "$remaining_num_args" -gt "0" ]] ; do
+
+		curr_input_opt="${!curr_input_opt_pos}"
+		remaining_num_args=$(( $remaining_num_args - 1 ))
+
+
+		if [[ "$curr_input_opt" == "--args" && "$remaining_num_args" -ge "$num_opt_args" ]] ; then
+
+			curr_pos_1=$(( $curr_input_opt_pos + 1 ))
+			output_opt_args="\"--args\" \"${!curr_pos_1}\""
+
+			output_opts="${!curr_pos_1}"
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_args + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_args ))
+
+		else
+
+			echo "[ Error: $1 $2 ]: Unable to parse option \"${curr_input_opt}\"."
+			exit
+
+		fi
+
+	done
+
+
+	"$path_to_lua" ${output_opts} "$2"
+
+	exit
+
+elif [[ "$1" == "tlc" ]] ; then
+
+	required_num_args=1
+	num_args=$(( $# - 1 ))
+
+	if [[ "$num_args" -lt "$required_num_args" ]] ; then
+
+		echo "Error: Missing arguments. Required: ${required_num_args}. Received: ${num_args}."
+		exit
+
+	fi
+
+
+	# PROCESS: Options.
+	output_opts=""
+	output_opt_args=""
+
+	num_opt_args="1"
+
+
+	curr_input_opt_pos=3
+	remaining_num_args=$(( $# - 2 ))
+
+
+	while [[ "$remaining_num_args" -gt "0" ]] ; do
+
+		curr_input_opt="${!curr_input_opt_pos}"
+		remaining_num_args=$(( $remaining_num_args - 1 ))
+
+
+		if [[ "$curr_input_opt" == "--args" && "$remaining_num_args" -ge "$num_opt_args" ]] ; then
+
+			curr_pos_1=$(( $curr_input_opt_pos + 1 ))
+			output_opt_args="\"--args\" \"${!curr_pos_1}\""
+
+			output_opts="${!curr_pos_1}"
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_args + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_args ))
+
+		else
+
+			echo "[ Error: $1 $2 ]: Unable to parse option \"${curr_input_opt}\"."
+			exit
+
+		fi
+
+	done
+
+
+
+	cd "$dir_to_tlc" && ./tlc ${output_opts} "${dir_to_pwd}/$2"
+
+	exit
+
+
+
+elif [[ "$1" == "path" ]] ; then
+
+	required_num_args=1
+	num_args=$(( $# - 1 ))
+
+	if [[ "$num_args" -lt "$required_num_args" ]] ; then
+
+		echo "Error: Missing arguments. Required: ${required_num_args}. Received: ${num_args}."
+		exit
+
+	fi
+
+
+
+
+	if [[ "$2" == "lua" ]] ; then
+
+		echo "$path_to_lua"
+		exit
+
+	elif [[ "$2" == "tlc" ]] ; then
+
+		echo "$path_to_tlc"
+		exit
+
+	elif [[ "$2" == "dir_to_lua_make" ]] ; then
+
+		echo "$dir_to_lua_make"
+		exit
+
+	elif [[ "$2" == "dir_to_tlc" ]] ; then
+
+		echo "$dir_to_tlc"
+		exit
+
+	else
+
+		echo "[ Error: $1 $2 ]: Unknown name \"${2}\"."
+		exit
+
+	fi
+
+
+	exit
+
+
+elif [[ "$1" == "example" ]] ; then
+
+	required_num_args=1
+	num_args=$(( $# - 1 ))
+
+	if [[ "$num_args" -lt "$required_num_args" ]] ; then
+
+		echo "Error: Missing arguments. Required: ${required_num_args}. Received: ${num_args}."
+		exit
+
+	fi
+
+
+	if [[ "$2" == "e1" ]] ; then
+
+#		dir_to_driver="${dir_to_project}/Benchmarks/b1"
+
+
+#		cd "$dir_to_driver" && "$path_to_lua" BenchmarkDriver.lua "$path_to_lua"
+
+		exit
+
+	fi
+
+	exit
+
+# SUB-COMMAND: benchmark.
+elif [[ "$1" == "benchmark" ]] ; then
+
+	# CHECK: Required number of arguments.
+	required_num_args=1
+	num_args=$(( $# - 1 ))
+
+	if [[ "$num_args" -lt "$required_num_args" ]] ; then
+
+		echo "[ Error: $1 ]: Missing arguments. Required: ${required_num_args}. Received: ${num_args}."
+		exit
+
+	fi
+
+
+	# PROCESS: Benchmark name.
+	dir_to_driver=""
+	path_to_component_cs_tl=""
+
+	num_opt_args=""
+	num_opt_build=""
+
+	if [[ "$2" == "b1" ]] ; then
+
+		dir_to_driver="${dir_to_project}/Benchmarks/b1"
+		path_to_component_cs_tl="${dir_to_driver}/BinaryTrees2_cs.tl"
+
+		num_opt_args="1"
+		num_opt_build="0"
+
+	else
+
+		echo "[ Error: $1 ]: Unknown benchmark \"${2}\"."
+		exit
+
+	fi
+
+
+	# PROCESS: Options.
+	output_opts=""
+	output_opt_build=""
+	build_fasta_N=""
+	output_opt_run=""
+	output_opt_num_iterations=""
+	output_opt_args=""
+	output_opt_print_output=""
+	output_opt_test_output=""
+	test_output_component=""
+	output_opt_path_to_lua="\"--path-to-lua\" \"${path_to_lua}\""
+
+	output_opts="$output_opt_path_to_lua"
+
+
+	num_opt_run="2"
+	num_opt_num_iterations="1"
+	num_opt_print_output="0"
+	num_opt_test_output="1"
+
+
+	curr_input_opt_pos=3
+	remaining_num_args=$(( $# - 2 ))
+
+
+	while [[ "$remaining_num_args" -gt "0" ]] ; do
+
+		curr_input_opt="${!curr_input_opt_pos}"
+		remaining_num_args=$(( $remaining_num_args - 1 ))
+
+		if [[ "$curr_input_opt" == "--build" && "$remaining_num_args" -ge "$num_opt_build" ]] ; then
+
+			output_opt_build="\"--build\""
+
+
+			if [[ "$num_opt_build" -ge "1" ]] ; then
+
+				curr_pos_1=$(( $curr_input_opt_pos + 1 ))
+				output_opt_build="\"--build\" \"${!curr_pos_1}\""
+
+				build_fasta_N="${!curr_pos_1}"
+
+			fi
+
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_build + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_build ))
+
+		elif [[ "$curr_input_opt" == "--run" && "$remaining_num_args" -ge "$num_opt_run" ]] ; then
+
+			curr_pos_1=$(( $curr_input_opt_pos + 1 ))
+			curr_pos_2=$(( $curr_input_opt_pos + 2 ))
+			output_opt_run="\"--run\" \"${!curr_pos_1}\" \"${!curr_pos_2}\""
+
+			if [[ "${!curr_pos_1}" -lt "1" ]] ; then
+
+				echo "[ Error: $1 $2 --run ]: \"${!curr_pos_1}\" is NOT >= 1."
+				exit
+
+			fi
+
+			if [[ "${!curr_pos_2}" != "lua" && "${!curr_pos_2}" != "cs" && "${!curr_pos_2}" != "luaffi" ]] ; then
+
+				echo "[ Error: $1 $2 --run ]: \"${!curr_pos_2}\" is NOT one of : \"lua\", \"cs\", \"luaffi\"."
+				exit
+
+			fi
+
+
+			output_opts="$output_opts $output_opt_run"
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_run + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_run ))
+
+		elif [[ "$curr_input_opt" == "--num-iterations" && "$remaining_num_args" -ge "$num_opt_num_iterations" ]] ; then
+
+			curr_pos_1=$(( $curr_input_opt_pos + 1 ))
+			output_opt_num_iterations="\"--num-iterations\" \"${!curr_pos_1}\""
+
+			if [[ "${!curr_pos_1}" -lt "1" ]] ; then
+
+				echo "[ Error: $1 $2 --num-iterations ]: \"${!curr_pos_1}\" is NOT >= 1."
+				exit
+
+			fi
+
+
+			output_opts="$output_opts $output_opt_num_iterations"
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_num_iterations + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_num_iterations ))
+
+		elif [[ "$curr_input_opt" == "--args" && "$remaining_num_args" -ge "$num_opt_args" ]] ; then
+
+			output_opt_args="\"--args\""
+
+			index_args="1"
+
+			while [[ "$index_args" -le "$num_opt_args" ]] ; do
+
+				curr_pos_1=$(( $curr_input_opt_pos + $index_args ))
+				output_opt_args="$output_opt_args \"${!curr_pos_1}\""
+
+				index_args=$(( $index_args + 1 ))
+
+			done
+
+
+			output_opts="$output_opts $output_opt_args"
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_args + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_args ))
+
+		elif [[ "$curr_input_opt" == "--print-output" && "$remaining_num_args" -ge "$num_opt_print_output" ]] ; then
+
+			output_opt_print_output="\"--print-output\""
+
+			output_opts="$output_opts $output_opt_print_output"
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_print_output + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_print_output ))
+
+		elif [[ "$curr_input_opt" == "--test-output" && "$remaining_num_args" -ge "$num_opt_test_output" ]] ; then
+
+			curr_pos_1=$(( $curr_input_opt_pos + 1 ))
+			output_opt_test_output="\"--test-output\" \"${!curr_pos_1}\""
+
+			if [[ "${!curr_pos_1}" != "lua" && "${!curr_pos_1}" != "cs" && "${!curr_pos_1}" != "luaffi" ]] ; then
+
+				echo "[ Error: $1 $2 --test-output ]: \"${!curr_pos_1}\" is NOT one of : \"lua\", \"cs\", \"luaffi\"."
+				exit
+
+			fi
+
+
+			test_output_component="${!curr_pos_1}"
+
+			curr_input_opt_pos=$(( $curr_input_opt_pos + $num_opt_test_output + 1 ))
+			remaining_num_args=$(( $remaining_num_args - $num_opt_test_output ))
+
+		else
+
+			echo "[ Error: $1 $2 ]: Unable to parse option \"${curr_input_opt}\"."
+			exit
+
+		fi
+
+	done
+
+
+	# TEST: Benchmark output.
+	if [[ "$output_opt_test_output" != "" ]] ; then
+
+		output_file_name="output_${test_output_component}.txt"
+
+		cd "$dir_to_driver" && diff -s "$output_file_name" "output_lua.txt" 
+
+		exit
+
+	fi
+
+	# BUILD: component_cs_tl.
+	if [[ "$output_opt_build" != "" ]] ; then
+
+		cd "$dir_to_tlc" && ./tlc "$path_to_component_cs_tl"
+
+		exit
+
+	fi
+
+	# CHECK: Option "--run".
+	if [[ "$output_opt_run" == "" ]] ; then
+
+		echo "[ Error: $1 $2 ]: Missing option \"--run\"."
+		exit
+
+	fi
+
+
+	# RUN: Benchmark.
+	cd "$dir_to_driver" && "$path_to_lua" BenchmarkDriver.lua ${output_opts}
+
+	exit
+
+
+
+elif [[ "$1" == "runall" ]] ; then
+
+	required_num_args=1
+	num_args=$(( $# - 1 ))
+
+	if [[ "$num_args" -lt "$required_num_args" ]] ; then
+
+		echo "Error: Missing arguments. Required: ${required_num_args}. Received: ${num_args}."
+		exit
+
+	fi
+
+
+
+	args_list="10"
+	num_iterations="--num-iterations 3"
+
+if [[ "0" -eq "1" ]] ; then
+
+	echo "IF"
+
+fi
+
+	# BUILD:
+	cd "$dir_to_project" && ./poseidonLua benchmark ${2} --build
+
+
+	# RUN: lua
+	index_run="1"
+	while [[ "$index_run" -le "${3}" ]] ; do
+
+		cd "$dir_to_project" && ./poseidonLua benchmark ${2} --run "$index_run" "lua" --args ${args_list}
+
+		index_run=$(( $index_run + 1 ))
+
+	done
+
+	cd "$dir_to_project" && ./poseidonLua benchmark ${2} --run "$index_run" "lua" --args ${args_list} --print-output ${num_iterations}
+
+
+	# RUN: cs
+	index_run="1"
+	while [[ "$index_run" -le "${3}" ]] ; do
+
+		cd "$dir_to_project" && ./poseidonLua benchmark ${2} --run "$index_run" "cs" --args ${args_list}
+
+		index_run=$(( $index_run + 1 ))
+
+	done
+
+	cd "$dir_to_project" && ./poseidonLua benchmark ${2} --run "$index_run" "cs" --args ${args_list} --print-output ${num_iterations}
+
+
+	# RUN: luaffi
+	index_run="1"
+	while [[ "$index_run" -le "${3}" ]] ; do
+
+		cd "$dir_to_project" && ./poseidonLua benchmark ${2} --run "$index_run" "luaffi" --args ${args_list}
+
+		index_run=$(( $index_run + 1 ))
+
+	done
+
+	cd "$dir_to_project" && ./poseidonLua benchmark ${2} --run "$index_run" "luaffi" --args ${args_list} --print-output ${num_iterations}
+
+
+	# TEST:
+	cd "$dir_to_project" && ./poseidonLua benchmark ${2} --test-output "cs"
+
+	cd "$dir_to_project" && ./poseidonLua benchmark ${2} --test-output "luaffi"
+
+
+
+
+	exit
+
+
+
+
+
+fi
+
+
